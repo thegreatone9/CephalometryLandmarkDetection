@@ -1,0 +1,38 @@
+# Dataset (too large for git)
+data/
+
+# Trained models (too large for git)
+models/
+
+# MLflow local run tracking folder (stale file-based store)
+mlruns/
+
+# MLflow artifacts and database
+artifacts/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+
+# Virtual environment
+.venv/
+venv/
+env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Jupyter
+.ipynb_checkpoints/
+
