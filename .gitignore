@@ -1,8 +1,8 @@
 # Dataset (too large for git)
-data/
+/data/
 
 # Trained models (too large for git)
-models/
+checkpoints/
 
 # MLflow local run tracking folder (stale file-based store)
 mlruns/
@@ -35,4 +35,3 @@ Thumbs.db
 
 # Jupyter
 .ipynb_checkpoints/
-
