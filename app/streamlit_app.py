@@ -230,29 +230,146 @@ def _compute_angles(coords):
     return sna, snb, anb
 
 
-def _interpret_anb_value(anb: float) -> str:
-    """Plain-English interpretation of the ANB angle."""
-    if _SRC_AVAILABLE:
-        return interpret_anb(anb)
+def _generate_clinical_interpretation(sna: float, snb: float, anb: float) -> str:
+    """Generate a detailed, plain-English clinical interpretation.
 
-    if 0 <= anb <= 4:
-        classification = "normal alignment (skeletal Class I)"
-        suggestion = "The upper and lower jaws appear well-aligned relative to each other."
-    elif anb > 4:
-        classification = "upper jaw positioned forward (skeletal Class II tendency)"
-        suggestion = ("The upper jaw sits noticeably ahead of the lower jaw, which an "
-                      "orthodontist might consider when planning treatment.")
-    else:
-        classification = "lower jaw positioned forward (skeletal Class III tendency)"
-        suggestion = ("The lower jaw sits ahead of the upper jaw, which can be relevant "
-                      "for orthodontic or surgical treatment planning.")
+    Written for a non-dental audience (e.g. a team lead or software engineer)
+    who has never seen a cephalometric analysis before.
+    """
+    sections = []
 
-    return (
-        f"**ANB measures how the upper and lower jaw line up relative to each other.** "
-        f"A value around 2° is typical.\n\n"
-        f"This patient's ANB of **{anb:.1f}°** suggests **{classification}**. "
-        f"{suggestion}"
+    # ── What are these angles? ──
+    sections.append(
+        "### 🔍 What do these numbers mean?\n\n"
+        "A **cephalometric analysis** measures the angles between key skull "
+        "landmarks to assess how the upper jaw (maxilla) and lower jaw "
+        "(mandible) relate to each other and to the base of the skull. "
+        "Orthodontists use these measurements to diagnose bite problems "
+        "and plan treatments like braces or jaw surgery.\n\n"
+        "Think of it like a structural inspection of a building — but for "
+        "the face. The AI located 6 anatomical points on the X-ray and "
+        "drew lines between them to measure three key angles:"
     )
+
+    # ── SNA interpretation ──
+    sna_section = f"**SNA = {sna:.1f}°** · _Upper jaw position relative to the skull base_\n\n"
+    if sna < 78:
+        sna_section += (
+            "📐 This is **below normal** (typical: 80–84°). "
+            "It suggests the upper jaw sits further back than usual relative to the skull. "
+            "Imagine the upper row of teeth being set slightly behind where they ideally should be."
+        )
+    elif sna <= 84:
+        sna_section += (
+            "✅ This is **within normal range** (typical: 80–84°). "
+            "The upper jaw is well-positioned relative to the skull base — "
+            "neither too far forward nor too far back."
+        )
+    elif sna <= 88:
+        sna_section += (
+            "📐 This is **slightly above normal** (typical: 80–84°). "
+            "The upper jaw is positioned a bit more forward than average. "
+            "This is common and often not clinically significant on its own."
+        )
+    else:
+        sna_section += (
+            "📐 This is **above normal** (typical: 80–84°). "
+            "The upper jaw is positioned noticeably forward relative to the skull. "
+            "This can contribute to a prominent upper lip or an 'overjet' appearance."
+        )
+    sections.append(sna_section)
+
+    # ── SNB interpretation ──
+    snb_section = f"**SNB = {snb:.1f}°** · _Lower jaw position relative to the skull base_\n\n"
+    if snb < 76:
+        snb_section += (
+            "📐 This is **below normal** (typical: 78–82°). "
+            "The lower jaw is positioned further back than usual. "
+            "This can make the chin appear receded or 'weak'."
+        )
+    elif snb <= 82:
+        snb_section += (
+            "✅ This is **within normal range** (typical: 78–82°). "
+            "The lower jaw is well-positioned — the chin sits where "
+            "it typically should relative to the skull."
+        )
+    elif snb <= 86:
+        snb_section += (
+            "📐 This is **slightly above normal** (typical: 78–82°). "
+            "The lower jaw is positioned a bit more forward than average, "
+            "which can give a more prominent chin."
+        )
+    else:
+        snb_section += (
+            "📐 This is **above normal** (typical: 78–82°). "
+            "The lower jaw is significantly forward. "
+            "This can contribute to an underbite appearance."
+        )
+    sections.append(snb_section)
+
+    # ── ANB interpretation (the most important one) ──
+    anb_section = f"**ANB = {anb:.1f}°** · _How the upper and lower jaws relate to each other_\n\n"
+    anb_section += (
+        "This is the **most important measurement**. It's simply SNA minus SNB — "
+        "the difference tells us whether the jaws are aligned.\n\n"
+    )
+
+    if anb < 0:
+        anb_section += (
+            f"🔴 **Class III** — The lower jaw is **ahead** of the upper jaw by "
+            f"{abs(anb):.1f}° (normal: 1–4°). "
+            "In everyday terms, this means the lower teeth and chin sit in front "
+            "of where the upper teeth are. This is what people sometimes call an "
+            "'underbite'. Depending on severity, treatment might involve braces, "
+            "aligners, or in significant cases, jaw surgery."
+        )
+    elif anb <= 1:
+        anb_section += (
+            f"🟡 **Borderline Class I/III** — The jaws are nearly edge-to-edge "
+            f"({anb:.1f}°, normal: 1–4°). "
+            "The upper and lower jaws are almost perfectly aligned front-to-back, "
+            "with a very slight tendency toward the lower jaw being forward. "
+            "This is often functionally normal."
+        )
+    elif anb <= 4:
+        anb_section += (
+            f"🟢 **Class I (Normal)** — The jaws are well-aligned "
+            f"({anb:.1f}°, normal: 1–4°). "
+            "The upper jaw sits just slightly ahead of the lower jaw, which is "
+            "exactly what healthy jaw alignment looks like. "
+            "The upper front teeth overlap the lower front teeth by a normal amount."
+        )
+    elif anb <= 7:
+        anb_section += (
+            f"🟡 **Mild Class II** — The upper jaw is moderately ahead of the lower jaw "
+            f"({anb:.1f}°, normal: 1–4°). "
+            "Think of it as the upper teeth being a bit too far forward compared "
+            "to the lower teeth — what's sometimes called a mild 'overbite'. "
+            "This is one of the most common orthodontic findings and is typically "
+            "treatable with braces or aligners."
+        )
+    else:
+        anb_section += (
+            f"🔴 **Class II** — The upper jaw is significantly ahead of the lower jaw "
+            f"({anb:.1f}°, normal: 1–4°). "
+            "The gap between where the upper and lower front teeth sit is larger "
+            "than normal — a noticeable 'overbite'. This might be because the "
+            "upper jaw grew too far forward, the lower jaw didn't grow enough, "
+            "or a combination. Treatment typically involves orthodontics, and in "
+            "severe cases, jaw surgery may be discussed."
+        )
+    sections.append(anb_section)
+
+    # ── Disclaimer ──
+    sections.append(
+        "---\n"
+        "⚠️ _This is an AI-generated analysis for demonstration purposes only. "
+        "It should **not** be used for clinical diagnosis. A qualified orthodontist "
+        "would consider many additional factors including dental angles, soft tissue "
+        "profile, growth patterns, and patient history._"
+    )
+
+    return "\n\n".join(sections)
 
 
 def _draw_results_on_image(img: Image.Image, coords, gt_coords=None):
@@ -574,7 +691,7 @@ with tab_demo:
 
                     # --- Clinical Interpretation ---
                     st.markdown("#### 🩺 Clinical Interpretation")
-                    st.markdown(_interpret_anb_value(anb))
+                    st.markdown(_generate_clinical_interpretation(sna, snb, anb))
 
                     st.divider()
 
