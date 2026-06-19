@@ -236,7 +236,8 @@ def main(argv: list[str] | None = None) -> None:
     # Training
     # ------------------------------------------------------------------
     print("\n[3/4] Training …")
-    with mlflow.start_run(tags={"encoder": args.encoder}):
+    run_name = f"{args.encoder}-ep{args.epochs}-bs{args.batch_size}-img{args.img_size}"
+    with mlflow.start_run(run_name=run_name, tags={"encoder": args.encoder}):
         log_hyperparams(hyperparams)
 
         trainer = Trainer(
