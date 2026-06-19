@@ -211,13 +211,19 @@ def _compute_angles(coords):
 
     coords order: S(0), N(1), A(2), B(3), Pog(4), Me(5)
     """
+    S, N, A, B = coords[0], coords[1], coords[2], coords[3]
+
     if _SRC_AVAILABLE:
-        sna = compute_sna(coords)
-        snb = compute_snb(coords)
-        anb = compute_anb(coords)
+        import numpy as np
+        s = np.array(S, dtype=np.float32)
+        n = np.array(N, dtype=np.float32)
+        a = np.array(A, dtype=np.float32)
+        b = np.array(B, dtype=np.float32)
+        sna = compute_sna(s, n, a)
+        snb = compute_snb(s, n, b)
+        anb = compute_anb(sna, snb)
         return sna, snb, anb
 
-    S, N, A, B = coords[0], coords[1], coords[2], coords[3]
     sna = _compute_angle_at_vertex(S, N, A)
     snb = _compute_angle_at_vertex(S, N, B)
     anb = sna - snb
@@ -251,16 +257,7 @@ def _interpret_anb_value(anb: float) -> str:
 
 def _draw_results_on_image(img: Image.Image, coords, gt_coords=None):
     """Draw landmarks and angle lines on the image. Returns a PIL Image."""
-    if _SRC_AVAILABLE:
-        result = draw_landmarks(img.copy(), coords, LANDMARK_SHORT, LANDMARK_COLORS)
-        if gt_coords:
-            result = draw_landmarks(result, gt_coords, LANDMARK_SHORT,
-                                    [GT_COLOR] * len(LANDMARK_SHORT), marker="x")
-        result = draw_angle_lines(result, coords)
-        return result
-
-    # Fallback: use PIL drawing
-    from PIL import ImageDraw, ImageFont
+    from PIL import ImageDraw
     result = img.copy()
     draw = ImageDraw.Draw(result)
     r = max(4, min(img.size) // 100)
