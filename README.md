@@ -12,6 +12,7 @@
 
 ## Table of Contents
 
+- [Tools & Technologies Used](#tools--technologies-used)
 - [Cephalometric Analysis: The Domain](#cephalometric-analysis-the-domain)
   - [What Is a Cephalogram?](#what-is-a-cephalogram)
   - [What Are Landmarks?](#what-are-landmarks)
@@ -21,6 +22,7 @@
 - [Results & Performance](#results--performance)
 - [Project Structure](#project-structure)
 - [Code Architecture Deep-Dive](#code-architecture-deep-dive)
+  - [The Training Data Flow](#the-training-data-flow)
   - [Training Entry Point: train.py](#1-training-entry-point-trainpy)
   - [Dataset & Heatmap Generation: dataset.py](#2-dataset--heatmap-generation-datasetpy)
   - [Data Augmentation: preprocessing.py](#3-data-augmentation-preprocessingpy)
@@ -39,6 +41,24 @@
 - [Experiment Tracking with MLflow](#experiment-tracking-with-mlflow)
 - [Dataset](#dataset)
 - [Acknowledgements](#acknowledgements)
+
+---
+
+## Tools & Technologies Used
+
+The following table summarizes each tool in the stack and its role in the project:
+
+| Tool | What It Is | Why We Use It |
+|------|-----------|---------------|
+| **Python 3.12** | A general-purpose programming language | The primary language for all code in this project |
+| **PyTorch** | An open-source machine learning framework (like a toolbox for building AI models) | Provides the building blocks for our neural network — tensors, layers, optimizers, GPU support |
+| **segmentation-models-pytorch** | A library of pre-built neural network architectures designed for image analysis | Gives us the U-Net model architecture out of the box, so we don't have to build it from scratch |
+| **Streamlit** | A Python framework for building web apps with minimal code | Powers our demo web interface — lets users upload X-rays and see results without any frontend coding |
+| **MLflow** | An experiment tracking tool for machine learning | Records every training run — what settings we used, how the model performed, which model file was saved — so we can compare experiments |
+| **Docker** | A tool that packages an application and all its dependencies into a portable "container" | Lets anyone run the demo app on any computer without installing Python, PyTorch, etc. — just `docker run` and it works |
+| **Albumentations** | An image augmentation library | Applies controlled random modifications to training images (rotation, brightness) to make the model more robust |
+| **NumPy** | A Python library for numerical computing with arrays | Used for matrix math, coordinate calculations, and image manipulation |
+| **Matplotlib** | A Python plotting and visualization library | Creates annotated X-ray figures with landmark overlays |
 
 ---
 
@@ -83,7 +103,7 @@ Once the landmarks are identified, the orthodontist draws lines between them and
          A (A-point)
 ```
 
-**What it measures:** The angle at Nasion between lines drawn to Sella and A-point. This tells you how far forward or backward the **upper jaw** sits relative to the skull base.
+**What it measures:** The angle at Nasion between lines drawn to Sella and A-point. This indicates how far forward or backward the **upper jaw** sits relative to the skull base.
 
 - **Normal range:** 80–84°
 - **High SNA (>84°):** Upper jaw is positioned too far forward (maxillary prognathism). The upper teeth stick out.
@@ -164,9 +184,9 @@ Trained on the **Aariz dataset** (700 training images, 150 validation, 150 test)
 | **SDR @ 3.0mm** | 98.8% |
 | **SDR @ 4.0mm** | 99.7% |
 
-> **MRE** (Mean Radial Error) = average Euclidean distance between predicted and actual landmark positions, converted to millimeters using per-image pixel spacing metadata.
+> **MRE** (Mean Radial Error) = average Euclidean distance between predicted and actual landmark positions, converted to millimeters using per-image pixel spacing metadata from the X-ray machine.
 >
-> **SDR** (Successful Detection Rate) = percentage of landmarks within a given distance threshold.
+> **SDR** (Successful Detection Rate) = percentage of landmarks that fall within a given distance of the correct position.
 >
 > The **clinical acceptability threshold is 2mm** — our model places **94.9% of landmarks within this tolerance**.
 
@@ -174,12 +194,12 @@ Trained on the **Aariz dataset** (700 training images, 150 validation, 150 test)
 
 | Landmark | MRE (mm) | Notes |
 |----------|----------|-------|
-| Menton (Me) | 0.51 | Easiest — sharp bone edge |
-| Pogonion (Pog) | 0.61 | Clear convexity |
-| Sella (S) | 0.73 | Well-defined cavity |
-| B-point (B) | 0.92 | Subtle concavity, harder |
-| Nasion (N) | 0.94 | Overlapping structures |
-| A-point (A) | 0.98 | Subtle concavity, hardest |
+| Menton (Me) | 0.51 | Easiest — sharp bone edge, high contrast |
+| Pogonion (Pog) | 0.61 | Clear convexity at chin prominence |
+| Sella (S) | 0.73 | Well-defined cavity in the skull base |
+| B-point (B) | 0.92 | Subtle concavity, harder to distinguish |
+| Nasion (N) | 0.94 | Multiple overlapping structures in that area |
+| A-point (A) | 0.98 | Subtle concavity, hardest landmark |
 
 ### Context
 
@@ -201,49 +221,49 @@ cephalometry/
 │   └── streamlit_app.py          # Web interface: upload → inference → visualization
 ├── src/
 │   ├── data/
-│   │   ├── dataset.py             # PyTorch Dataset: JSON parsing, heatmap generation
-│   │   └── preprocessing.py       # Albumentations augmentation pipelines
+│   │   ├── dataset.py             # Loads images + annotations, generates heatmap targets
+│   │   └── preprocessing.py       # Image augmentation pipelines
 │   ├── models/
-│   │   └── unet.py                # U-Net factory (segmentation-models-pytorch wrapper)
+│   │   └── unet.py                # Neural network model definition
 │   ├── training/
-│   │   ├── trainer.py             # Training loop: MSE loss, Adam, checkpointing
-│   │   └── mlflow_utils.py        # MLflow experiment tracking helpers
+│   │   ├── trainer.py             # Training loop: feeds data, computes loss, updates model
+│   │   └── mlflow_utils.py        # Experiment tracking helpers
 │   ├── inference/
-│   │   ├── predict.py             # Heatmap → coordinates + weighted centroid refinement
-│   │   └── angles.py              # SNA/SNB/ANB computation + clinical interpretation
+│   │   ├── predict.py             # Converts model output to coordinates + confidence
+│   │   └── angles.py              # Angle computation + clinical interpretation
 │   ├── viz/
-│   │   └── overlay.py             # Matplotlib-based landmark visualization
-│   └── evaluation.py              # MRE/SDR evaluation with per-image pixel spacing
-├── train.py                       # CLI training entry point
-├── run.sh                         # Unified operations script (338 lines)
-├── Dockerfile                     # CPU-only inference container
-├── .dockerignore                  # Excludes data/, .venv/, .git/ from Docker context
-├── requirements.txt               # Full dependencies (with GPU support for training)
-├── requirements-docker.txt        # CPU-only dependencies (for Docker inference)
-├── .streamlit/                    # Streamlit theme configuration
-├── checkpoints/                   # Saved model weights (best_model.pth, ~280MB)
-├── sample_images/                 # Demo X-rays for the Streamlit app
-└── data/                          # Training data (not committed)
+│   │   └── overlay.py             # Draws landmarks on X-ray images
+│   └── evaluation.py              # Computes accuracy metrics (MRE, SDR)
+├── train.py                       # Main script to run training
+├── run.sh                         # Unified operations script (start/stop/build everything)
+├── Dockerfile                     # Defines how to package the app as a Docker container
+├── .dockerignore                  # Tells Docker which files to skip when building
+├── requirements.txt               # Python packages needed (with GPU support for training)
+├── requirements-docker.txt        # Python packages needed (CPU-only, for Docker)
+├── .streamlit/                    # Streamlit visual theme settings
+├── checkpoints/                   # Saved model files (best_model.pth, ~280MB)
+├── sample_images/                 # Demo X-rays for the web app
+└── data/                          # Training data (not committed to git — too large)
 ```
 
-### Inter-Module Dependency Graph
+### How the Modules Connect
 
 ```
-train.py (orchestrator)
-├── src/data/dataset.py ──── CephalometricDataset, constants, load_pixel_spacings
-│   └── src/data/preprocessing.py ──── Albumentations augmentation pipelines
-├── src/models/unet.py ──── create_model(), get_parameter_groups()
-├── src/training/trainer.py ──── Trainer class (training loop)
+train.py (orchestrator — runs the full pipeline)
+├── src/data/dataset.py ──── Loads images + annotations, generates training targets
+│   └── src/data/preprocessing.py ──── Augments images (rotation, brightness, etc.)
+├── src/models/unet.py ──── Defines the neural network architecture
+├── src/training/trainer.py ──── The training loop (forward pass → loss → backprop → save)
 │   ├── src/models/unet.py
-│   └── src/training/mlflow_utils.py ──── log_epoch_metrics(), log_model_artifact()
-├── src/training/mlflow_utils.py ──── setup_experiment(), log_hyperparams()
-└── src/evaluation.py ──── evaluate_model()
-    └── src/inference/predict.py ──── heatmap_to_coordinates(), refine_coordinates()
+│   └── src/training/mlflow_utils.py ──── Records metrics to MLflow
+├── src/training/mlflow_utils.py ──── Sets up experiment, logs hyperparameters
+└── src/evaluation.py ──── Tests the trained model, computes MRE and SDR
+    └── src/inference/predict.py ──── Converts heatmaps to coordinates
 
-app/streamlit_app.py (standalone inference)
-├── src/models/unet.py ──── create_model()
-├── src/inference/predict.py ──── heatmap_to_coordinates(), compute_confidence()
-└── src/inference/angles.py ──── compute_sna(), compute_snb(), compute_anb(), interpret_anb()
+app/streamlit_app.py (standalone web app for inference)
+├── src/models/unet.py ──── Loads the trained model
+├── src/inference/predict.py ──── Runs inference on uploaded images
+└── src/inference/angles.py ──── Computes and interprets angles
 ```
 
 ---
@@ -252,51 +272,55 @@ app/streamlit_app.py (standalone inference)
 
 ### The Training Data Flow
 
-Before diving into individual files, here's the complete data flow from raw files to trained model:
+The complete journey from raw data to a trained model follows this pipeline:
 
 ```
 Raw X-ray PNG + JSON annotations
-    ↓ dataset.py: parse JSON, average junior/senior annotations
-    ↓ dataset.py: generate 6-channel Gaussian heatmaps (σ=5)
-    ↓ preprocessing.py: apply keypoint-aware augmentation
-    ↓ DataLoader: batch into tensors [B, 1, 512, 512]
-    ↓ unet.py: U-Net forward pass → predicted heatmaps [B, 6, 512, 512]
-    ↓ trainer.py: MSE loss vs target heatmaps → backprop → update weights
-    ↓ trainer.py: checkpoint best model by val loss
-    ↓ predict.py: argmax → weighted centroid refinement → (x, y) coords
-    ↓ evaluation.py: rescale to original resolution → MRE in mm + SDR
-    ↓ mlflow_utils.py: log all metrics
+    ↓ dataset.py: Parse JSON, average junior + senior expert annotations
+    ↓ dataset.py: Generate 6-channel Gaussian heatmaps (the "target" the model learns to produce)
+    ↓ preprocessing.py: Apply random augmentation (rotation, brightness)
+    ↓ PyTorch DataLoader: Group into batches of 4 images
+    ↓ unet.py: Feed batch through U-Net → predicted heatmaps [4, 6, 512, 512]
+    ↓ trainer.py: Compute MSE loss (how far off are the predictions?)
+    ↓ trainer.py: Backpropagation (figure out how to improve)
+    ↓ trainer.py: Optimizer step (nudge all parameters to reduce loss)
+    ↓ trainer.py: Repeat for all batches = 1 epoch
+    ↓ trainer.py: Save checkpoint if this epoch's validation loss is the best so far
+    ↓ (repeat for 50 epochs)
+    ↓ predict.py: Find peaks in heatmaps → (x, y) coordinates
+    ↓ evaluation.py: Convert pixel distances to millimeters → compute MRE and SDR
+    ↓ mlflow_utils.py: Log everything for posterity
     ↓ Best model saved to checkpoints/best_model.pth
 ```
 
 ### 1. Training Entry Point: `train.py`
 
-**Purpose:** The CLI orchestrator that ties everything together.
+**Purpose:** The top-level script that orchestrates everything. Running `./run.sh train --epochs 50` invokes this module.
 
-**What happens when you run `./run.sh train --epochs 50`:**
+**What happens step by step:**
 
-1. **Parse arguments** via `parse_args()` — encoder, epochs, batch size, learning rates, sigma, image size, data/checkpoint directories.
+1. **Parse arguments** via `parse_args()` — reads command-line settings like encoder architecture, number of epochs, batch size, learning rates, heatmap sigma, image size, and data/checkpoint directory paths.
 
-2. **Load pixel spacings** from `data/cephalogram_machine_mappings.csv`. This CSV maps each X-ray image to the physical pixel size of the machine that captured it (in mm/pixel). Values range from 0.089 to 0.144 mm/px across 5 different X-ray machines. If the CSV isn't found, defaults to 0.1 mm/px.
+2. **Load pixel spacings** from `data/cephalogram_machine_mappings.csv`. This CSV maps each X-ray image to the physical pixel size of the machine that captured it (in mm/pixel). Different X-ray machines have different resolutions — values range from 0.089 to 0.144 mm/px across 5 different machines in the dataset. This is critical for computing errors in real-world millimeters rather than arbitrary pixels. If the CSV isn't found, all images default to 0.1 mm/px.
 
-3. **Build DataLoaders** via `build_dataloaders()` — creates three `CephalometricDataset` instances for `train/`, `val/`, and `test/` splits, wraps them in PyTorch `DataLoader`s. The train loader shuffles; val/test do not.
+3. **Build DataLoaders** via `build_dataloaders()` — creates three `CephalometricDataset` instances for `train/`, `val/`, and `test/` splits. A **DataLoader** is a PyTorch utility that wraps a dataset and handles batching (grouping images into groups of 4), shuffling (randomizing order each epoch for training), and feeding data to the model efficiently. The training loader shuffles; validation/test loaders do not.
 
-4. **Set up MLflow** — creates or retrieves the `cephalometric-landmark-detection` experiment, starts a run named like `resnet34-ep50-bs4-img512`, logs all hyperparameters.
+4. **Set up MLflow** — creates or retrieves an experiment called `cephalometric-landmark-detection`, starts a tracked run named like `resnet34-ep50-bs4-img512`, and logs all hyperparameters (settings).
 
-5. **Train** — instantiates `Trainer`, calls `trainer.fit(train_loader, val_loader)`. This runs the full training loop and returns the path to the best checkpoint.
+5. **Train** — creates a `Trainer` object and calls `trainer.fit(train_loader, val_loader)`. This runs the full training loop across all epochs and returns the path to the best-performing checkpoint.
 
-6. **Evaluate** — loads the best checkpoint, runs `evaluate_model()` on the test DataLoader, logs MRE and SDR metrics to MLflow, prints a formatted results table.
+6. **Evaluate** — loads the best checkpoint, runs the model on the test set, computes MRE/SDR metrics, logs them to MLflow, and prints a formatted results table.
 
 ### 2. Dataset & Heatmap Generation: `dataset.py`
 
-**Purpose:** The most complex module — handles the Aariz dataset's JSON format, dual-annotator averaging, and Gaussian heatmap target generation.
+**Purpose:** The most complex module — handles loading the Aariz dataset's unique format, averaging annotations from two expert groups, and generating the heatmap targets that the model learns to predict.
 
-**Constants:**
+**Constants defined here:**
 - `ALL_LANDMARK_SYMBOLS`: All 29 landmarks in the Aariz dataset
 - `SELECTED_SYMBOLS = ["S", "N", "A", "B", "Pog", "Me"]`: The 6 we use
 - `NUM_LANDMARKS = 6`
 
-**JSON annotation parsing:** The Aariz dataset stores annotations in JSON files with a nested structure:
+**JSON annotation parsing:** The Aariz dataset stores landmark positions in JSON files with a nested structure:
 
 ```json
 {
@@ -308,312 +332,359 @@ Raw X-ray PNG + JSON annotations
 }
 ```
 
-The function `_load_landmarks_from_json()` parses this into a `{symbol: (x, y)}` dict.
+The function `_load_landmarks_from_json()` reads this file and converts it into a simple Python dictionary mapping each landmark symbol to its (x, y) position.
 
-**Dual-annotator averaging:** Each image has annotations from both a junior and senior orthodontist (in separate JSON files). The function `_average_annotations()` loads both and computes the element-wise mean of their coordinates. This produces more reliable ground truth than either annotator alone.
+**Dual-annotator averaging:** Each image has annotations from both a junior and senior orthodontist, stored in separate JSON files. The function `_average_annotations()` loads both, and for each landmark, computes the midpoint of the two experts' positions. This produces more reliable **ground truth** (the "correct answer" the model trains against) than using either expert alone.
 
-**Gaussian heatmap generation:** Instead of predicting raw (x, y) coordinates directly (which is numerically unstable), the model predicts **heatmaps** — one 512×512 image per landmark, where the target is a 2D Gaussian blob centered on the landmark's location:
+**Why heatmaps instead of direct coordinate prediction:**
+
+A naive approach would be to have the model directly output 12 numbers (x and y for each of 6 landmarks). But this has a fundamental problem: a small error in any one number (say, off by 20 pixels) produces the same loss regardless of whether the prediction is close or far from the correct answer in 2D space. The loss landscape (the "terrain" the optimizer navigates) is flat and hard to learn from.
+
+Instead, we use **heatmap regression**. For each landmark, we create a 512×512 "heatmap" image where:
+- The correct landmark position has a bright peak (value = 1.0)
+- The brightness fades smoothly outward in a bell-curve shape (a **Gaussian** distribution)
+- Everything far from the landmark is dark (value ≈ 0)
 
 ```
 _generate_gaussian_heatmap(height, width, cx, cy, sigma=5.0):
-    # Creates a 2D Gaussian with peak=1.0 at (cx, cy)
-    # σ=5.0 means the "hot spot" spans roughly 10 pixels
-    # Values decay to near-zero beyond ~3σ (15 pixels)
-    heatmap[y, x] = exp(-((x-cx)² + (y-cy)²) / (2σ²))
+    # Creates a 2D bell-curve with peak=1.0 at (cx, cy)
+    # sigma (σ) controls how wide the bell curve is
+    # σ=5.0 means the bright spot spans roughly 10 pixels across
+    # Values fade to near-zero beyond ~15 pixels from center
+    heatmap[y, x] = exp(-((x - cx)² + (y - cy)²) / (2σ²))
 ```
 
-This approach is standard in keypoint detection because:
-- It provides a smooth, differentiable loss landscape (vs. discrete coordinate regression)
-- Small errors in peak position result in small loss values (graceful degradation)
-- The model can express uncertainty through peak spread/height
+The Gaussian shape provides a smooth, gradual signal for the loss function: even if a prediction is off by a few pixels, the overlap with the target peak is nonzero, which gives the optimizer a useful gradient to work with.
 
-**`CephalometricDataset.__getitem__()`** returns a dict with:
-- `image`: tensor `[1, 512, 512]` — grayscale, normalized to [0,1]
-- `heatmaps`: tensor `[6, 512, 512]` — 6-channel Gaussian targets
-- `landmarks`: tensor `[6, 2]` — raw (x, y) coordinates (for evaluation)
-- `meta`: dict with `image_path`, `ceph_id`, `original_size`, `resized_size`, `pixel_spacing`
+The function `generate_heatmaps()` creates 6 of these heatmaps (one per landmark), stacked into a single tensor of shape `[6, 512, 512]`.
+
+**What `__getitem__()` returns** (called every time the DataLoader needs one sample):
+- `image`: the X-ray as a tensor `[1, 512, 512]` — 1 channel (grayscale), normalized to values between 0 and 1
+- `heatmaps`: the target heatmaps as a tensor `[6, 512, 512]` — what the model should produce
+- `landmarks`: the raw (x, y) coordinates as a tensor `[6, 2]` — used later for evaluation
+- `meta`: a dictionary with metadata — image path, cephalogram ID, original image size, resized size, and pixel spacing (mm/px)
 
 ### 3. Data Augmentation: `preprocessing.py`
 
-**Purpose:** Defines augmentation pipelines using Albumentations with **keypoint-aware transforms** — when the image is rotated or shifted, the landmark coordinates are automatically transformed to match.
+**Purpose:** Defines the image augmentation pipelines using **Albumentations**, a popular image augmentation library.
 
-**Training augmentations:**
-- `Resize(512, 512)` — standardize input size
-- `Rotate(limit=±15°, p=0.5)` — simulate head tilt during X-ray capture
-- `RandomBrightnessContrast(±0.15, p=0.5)` — simulate exposure variation
-- `GaussNoise(std_range=(0.01, 0.05), p=0.3)` — simulate sensor noise
+**The key challenge:** When an image is rotated or shifted, the landmark coordinates must be transformed in exactly the same way, or the targets become wrong. Albumentations solves this with **keypoint-aware transforms** — we register the (x, y) points as attached to the image, and Albumentations automatically adjusts them when the image is modified.
 
-**Critically omitted: horizontal flip.** Unlike natural images where flipping is a free augmentation, cephalograms are **always** taken from the same side. Flipping would create anatomically impossible images and confuse the model.
+**Training augmentations (applied randomly each time an image is loaded):**
+- `Resize(512, 512)` — standardize all images to the same size
+- `Rotate(limit=±15°, p=0.5)` — 50% chance of rotating up to 15 degrees (simulates head tilt)
+- `RandomBrightnessContrast(±0.15, p=0.5)` — 50% chance of brightness/contrast change (simulates different X-ray exposures)
+- `GaussNoise(std_range=(0.01, 0.05), p=0.3)` — 30% chance of adding slight random noise (simulates sensor imperfections)
 
-**Keypoint tracking:** Uses `KeypointParams(format="xy", remove_invisible=False)` so Albumentations transforms the (x, y) coordinates along with the image. `remove_invisible=False` ensures landmarks that rotate slightly outside the image boundary aren't dropped.
+**Validation/test augmentations:** Only `Resize(512, 512)` — no random modifications, because we want consistent evaluation.
+
+**Critically omitted: horizontal flip.** Flipping is normally a "free" augmentation for natural images (a flipped cat is still a cat). But cephalograms are **always** taken from the same side — flipping one would create an anatomically impossible mirror image and confuse the model about left vs. right anatomy.
 
 ### 4. Model Architecture: `unet.py`
 
-**Purpose:** Creates the U-Net model using `segmentation_models_pytorch`.
+**Purpose:** Defines the neural network architecture that processes X-ray images and outputs heatmaps.
 
-**Architecture:**
+**What is a U-Net?**
+
+U-Net is a neural network architecture originally designed for medical image analysis (specifically, segmenting cell boundaries under microscopes). Its name comes from its U-shaped structure:
+
+1. **Encoder (left side of the U):** Progressively shrinks the image while extracting increasingly abstract features — from edges to shapes to anatomical structures — while losing spatial detail.
+
+2. **Decoder (right side of the U):** Progressively enlarges back to the original resolution, using the abstract understanding to make precise, pixel-level predictions.
+
+3. **Skip connections (the bridges across the U):** Direct wires connecting each encoder level to the corresponding decoder level. These let the decoder access the fine spatial details that the encoder captured before shrinking. Without skip connections, the decoder would have to reconstruct precise positions from very small, abstract representations — skip connections dramatically improve spatial precision.
+
+**What is ResNet34?**
+
+ResNet34 is a specific encoder architecture with 34 layers, designed by Microsoft Research. We don't build it from scratch — we use it as a pre-built component from the `segmentation_models_pytorch` library. The "34" refers to the number of layers deep it goes. It's been pretrained on **ImageNet** (14 million everyday photographs), meaning it already knows how to detect edges, textures, and shapes before we even show it a single X-ray.
+
+**Full architecture diagram:**
 
 ```
-Input: [B, 1, 512, 512] (grayscale X-ray)
+Input: [B, 1, 512, 512]
+       B images, 1 channel (grayscale), 512×512 pixels
     │
-    ▼ ResNet34 Encoder (pretrained on ImageNet)
-    │  ├── Block 1: 64 channels,  256×256
-    │  ├── Block 2: 64 channels,  128×128
-    │  ├── Block 3: 128 channels, 64×64
-    │  ├── Block 4: 256 channels, 32×32
-    │  └── Block 5: 512 channels, 16×16  (bottleneck)
+    ▼ ResNet34 Encoder (pretrained — already knows edges, textures, shapes)
+    │  ├── Block 1: 64 feature maps,  256×256 pixels (detects edges)
+    │  ├── Block 2: 64 feature maps,  128×128 pixels (detects textures)
+    │  ├── Block 3: 128 feature maps, 64×64 pixels  (detects shapes)
+    │  ├── Block 4: 256 feature maps, 32×32 pixels  (detects structures)
+    │  └── Block 5: 512 feature maps, 16×16 pixels  (detects anatomy — "bottleneck")
+    │         ↕ skip connections carry spatial detail across
+    ▼ U-Net Decoder (randomly initialized — learns from scratch)
+    │  ├── Up 5: 256 maps, 32×32 + skip from Block 4
+    │  ├── Up 4: 128 maps, 64×64 + skip from Block 3
+    │  ├── Up 3: 64 maps,  128×128 + skip from Block 2
+    │  ├── Up 2: 32 maps,  256×256 + skip from Block 1
+    │  └── Up 1: 16 maps,  512×512
     │
-    ▼ U-Net Decoder (5 upsampling blocks with skip connections)
-    │  ├── Up 5: 256 channels, 32×32 + skip from Block 4
-    │  ├── Up 4: 128 channels, 64×64 + skip from Block 3
-    │  ├── Up 3: 64 channels,  128×128 + skip from Block 2
-    │  ├── Up 2: 32 channels,  256×256 + skip from Block 1
-    │  └── Up 1: 16 channels,  512×512
+    ▼ Segmentation Head: a single convolutional layer (16 → 6)
+    │  (Convolution = sliding a small filter across the image to transform features)
     │
-    ▼ Segmentation Head: Conv2d(16 → 6)
-    │
-Output: [B, 6, 512, 512] (6 heatmaps, one per landmark)
+Output: [B, 6, 512, 512]
+        B images, 6 heatmaps (one per landmark), 512×512 pixels
 ```
 
-**Key design decisions:**
-- **1-channel input:** Cephalograms are grayscale. `smp.Unet` automatically adapts the first conv layer.
-- **6-channel output:** One heatmap per landmark (S, N, A, B, Pog, Me).
-- **ImageNet pretrained:** Even though ImageNet is RGB natural images, the low-level features (edges, textures) transfer well to medical grayscale images.
-- **~24M parameters:** ResNet34 is a good balance of capacity vs. training speed.
+**A "feature map"** (also called a "channel") is like a filtered version of the image that highlights a specific pattern. Block 1 might have 64 feature maps detecting 64 types of edges; Block 5 might have 512 feature maps each detecting a different anatomical structure.
 
-**Differential learning rates** via `get_parameter_groups()`:
-- Encoder (pretrained): lower LR (1e-4) — fine-tune gently
-- Decoder + segmentation head (randomly initialized): higher LR (1e-3) — learn faster
+**Why ~24 million parameters?** Each "parameter" is a single number inside the model that gets tuned during training. ResNet34 is a good balance — small enough to train in ~50 minutes on a laptop GPU, large enough to learn the complex patterns in cephalometric anatomy.
+
+**Differential learning rates:** Since the encoder is pretrained (already knows useful patterns), we update it slowly (learning rate 1e-4 = 0.0001) to preserve what it already knows. The decoder starts from random values and needs to learn everything from scratch, so we update it faster (learning rate 1e-3 = 0.001). The function `get_parameter_groups()` splits the model's parameters into these two groups for the optimizer.
 
 ### 5. Training Loop: `trainer.py`
 
-**Purpose:** Encapsulates the complete training loop.
+**Purpose:** Contains the `Trainer` class that runs the actual training process — the repeated cycle of predict → measure error → improve.
 
-**Device auto-detection:**
+**Device auto-detection:** Before training starts, the code checks what hardware is available:
 ```python
 def get_device():
-    if torch.backends.mps.is_available():  # Apple Silicon
+    if torch.backends.mps.is_available():  # Apple Silicon GPU
         return torch.device("mps")
     elif torch.cuda.is_available():         # NVIDIA GPU
         return torch.device("cuda")
-    return torch.device("cpu")
+    return torch.device("cpu")              # Fallback — much slower
 ```
 
-**Loss function: MSE (Mean Squared Error)**
+**The loss function: MSE (Mean Squared Error)**
 
-The model predicts 6 heatmaps; the target is 6 Gaussian heatmaps. MSE computes the average squared difference across all pixels across all 6 channels:
+After the model produces predicted heatmaps, we need a single number that represents "how wrong" the predictions are. That's the **loss function**. We use MSE, which computes the average of all squared pixel differences between the predicted and target heatmaps:
 
 ```
 Loss = mean((predicted_heatmap - target_heatmap)²)
 ```
 
-This works because:
-- Most of the target is zeros (background)
-- The Gaussian peaks provide a strong, localized learning signal
-- MSE is smooth and differentiable everywhere
+Squaring the differences means large errors are penalized much more than small ones (an error of 10 produces a loss of 100, but an error of 1 produces a loss of only 1). This pushes the model to eliminate big mistakes first.
 
-**Optimizer:** Adam with the differential learning rates from `get_parameter_groups()`.
+**The optimizer: Adam**
 
-**Scheduler:** `ReduceLROnPlateau(factor=0.5, patience=10)` — if validation loss doesn't improve for 10 consecutive epochs, halve the learning rate. This prevents the model from overshooting and helps it converge to finer precision.
+After computing the loss, **backpropagation** calculates how each of the 24 million parameters contributed to the error. Then the **optimizer** adjusts each parameter to reduce the loss. Adam is a popular optimizer that keeps a running average of past gradients to adapt its step size — parameters that consistently point in the same direction get larger steps, while noisy parameters get smaller steps.
 
-**Checkpointing:** After each epoch, if val loss is the best seen so far, save:
+**The scheduler: ReduceLROnPlateau**
+
+Sometimes training gets stuck — the loss stops decreasing. The **learning rate scheduler** monitors the validation loss, and if it hasn't improved for 10 consecutive epochs (called "patience"), it halves the learning rate. A smaller learning rate means smaller, more careful steps, which can help the model escape a stuck point and find finer precision.
+
+**Checkpointing:** After every epoch, the trainer compares the current validation loss to the best seen so far. If it's better, it saves the model's complete state to `checkpoints/best_model.pth`:
 ```python
 torch.save({
-    "epoch": epoch,
-    "model_state_dict": model.state_dict(),
+    "epoch": epoch,                          # which epoch this was
+    "model_state_dict": model.state_dict(),  # all 24M learned parameters
     "optimizer_state_dict": optimizer.state_dict(),
-    "val_loss": val_loss,
+    "val_loss": val_loss,                    # how good this model is
 }, "checkpoints/best_model.pth")
 ```
 
+This ensures we always keep the best-performing version of the model, even if later epochs overfit and get worse.
+
 ### 6. MLflow Integration: `mlflow_utils.py`
 
-**Purpose:** Wraps MLflow operations so the training code stays clean.
+**Purpose:** Handles experiment tracking — recording what settings were used and how the model performed, so different training runs can be compared.
 
-**What gets logged:**
-- **Hyperparameters:** encoder, epochs, batch_size, encoder_lr, decoder_lr, sigma, image_size (via `mlflow.log_params()`)
-- **Per-epoch metrics:** train_loss and val_loss with epoch as the step index (creates the loss curves in the MLflow UI)
-- **Evaluation metrics:** mre_overall_mm, per-landmark MRE (e.g., `mre_Sella_S_mm`), SDR at all thresholds
-- **Artifacts:** The best model checkpoint file
+MLflow is an open-source experiment tracking tool that acts as a structured lab notebook for machine learning. Each training run records:
+- **Hyperparameters:** The settings used (encoder type, learning rate, number of epochs, etc.)
+- **Metrics:** Model performance at each epoch (training loss, validation loss) and final evaluation results (MRE, SDR)
+- **Artifacts:** The trained model file
 
-**Metric name sanitization:** MLflow rejects special characters in metric names. The Aariz landmark names contain parentheses like "Sella (S)". The code sanitizes via:
-```python
-safe_name = re.sub(r"[^a-zA-Z0-9_\-.\s:/]", "", name).strip().replace(" ", "_")
-```
+The MLflow web UI (at http://localhost:5000) allows side-by-side comparison of runs, loss curve visualization, and identification of the best-performing configuration.
 
-**Storage backend:** Uses SQLite (`sqlite:///mlflow.db`) for metrics and metadata storage. This is a single-file database, making it portable and simple.
+**Key functions:**
+- `setup_experiment()`: Creates or finds the MLflow experiment
+- `log_hyperparams()`: Records the training settings
+- `log_epoch_metrics()`: Records train/val loss after each epoch (these become the loss curves in the UI)
+- `log_evaluation_metrics()`: Records final MRE and SDR numbers
+- `log_model_artifact()`: Uploads the `.pth` model file to MLflow's artifact store
+
+**Metric name sanitization:** MLflow doesn't allow special characters like parentheses in metric names. The Aariz landmark names include them (e.g., "Sella (S)"), so the code strips them out via regex before logging.
+
+**Storage:** Everything is stored in a local SQLite database file (`mlflow.db`), which is just a single file on disk. No external database server needed.
 
 ### 7. Post-Processing: `predict.py`
 
-**Purpose:** Converts raw model output (heatmaps) into precise landmark coordinates.
+**Purpose:** The model outputs 6 heatmaps (512×512 images of "brightness"). We need to convert these into precise (x, y) coordinates for each landmark. This module does that conversion.
 
-**Step 1 — Argmax:** Find the pixel with the highest value in each heatmap channel:
+**Step 1 — Argmax (find the brightest pixel):**
+
+For each of the 6 heatmaps, find the pixel with the highest value. That pixel's position is our initial landmark coordinate:
+
 ```python
-flat_idx = heatmap.flatten().argmax()
-y, x = divmod(flat_idx, width)
+flat_idx = heatmap.flatten().argmax()  # index of brightest pixel
+y, x = divmod(flat_idx, width)         # convert flat index to 2D coordinates
 ```
 
-**Step 2 — Weighted centroid refinement:** The argmax gives integer pixel coordinates, but the true peak is likely between pixels. The weighted centroid extracts a small window (5×5) around the peak and computes the intensity-weighted center of mass:
+**"Argmax"** literally means "argument of the maximum" — it returns the *position* of the maximum value, not the value itself.
+
+**Step 2 — Weighted centroid refinement (sub-pixel precision):**
+
+The argmax gives us integer pixel coordinates (e.g., x=234, y=189), but the true peak might be between pixels (e.g., x=234.3, y=189.7). To get this **sub-pixel precision**, we look at a small 5×5 patch of pixels around the peak and compute a brightness-weighted average position:
 
 ```python
 def weighted_centroid(heatmap, peak_x, peak_y, window=5):
-    patch = heatmap[y1:y2, x1:x2]  # 5×5 window
-    total = patch.sum()
-    cx = (patch * x_coords).sum() / total  # weighted average x
-    cy = (patch * y_coords).sum() / total  # weighted average y
-    return cx, cy  # sub-pixel precision
+    patch = heatmap[y1:y2, x1:x2]  # extract 5×5 window around peak
+    total = patch.sum()              # total brightness
+    cx = sum(x * brightness) / total # brightness-weighted average x
+    cy = sum(y * brightness) / total # brightness-weighted average y
+    return cx, cy                    # e.g., (234.3, 189.7)
 ```
 
-This typically improves accuracy by 0.1–0.3mm.
+This is analogous to computing the center of gravity of the brightness distribution. It typically improves accuracy by 0.1–0.3mm.
 
-**Step 3 — Confidence scoring:** The peak heatmap value (0–1) directly reflects model confidence:
+**Step 3 — Confidence scoring:**
+
+The peak brightness value (between 0 and 1) directly reflects how confident the model is about that landmark's position:
 ```python
-confidence = min(heatmap.max() * 100, 100.0)  # as percentage
+confidence = min(heatmap.max() * 100, 100.0)  # convert to percentage
 ```
 
-A high peak (~0.95) means the model is very certain; a low peak (~0.50) means it's uncertain.
+A tall, sharp peak (~95%) means the model is very certain about the position. A low, spread-out peak (~50%) means it's uncertain — maybe the anatomy is ambiguous in that area.
 
 ### 8. Angle Computation: `angles.py`
 
-**Purpose:** Computes the three clinical angles from landmark coordinates.
+**Purpose:** Once we have the (x, y) positions of the 6 landmarks, this module computes the three clinical angles (SNA, SNB, ANB) using basic trigonometry.
 
-Uses `atan2`-based angle computation for numerical stability:
+The angle between two lines meeting at a vertex is computed using `atan2` (a standard trigonometric function that handles all quadrants correctly):
 
 ```python
 def compute_angle(point_a, vertex, point_b):
     va = point_a - vertex  # vector from vertex to point A
     vb = point_b - vertex  # vector from vertex to point B
-    angle_a = atan2(va[1], va[0])
-    angle_b = atan2(vb[1], vb[0])
+    angle_a = atan2(va[1], va[0])  # direction of vector A
+    angle_b = atan2(vb[1], vb[0])  # direction of vector B
     angle = abs(angle_a - angle_b)
-    if angle > π: angle = 2π - angle  # normalize to [0, π]
+    if angle > π: angle = 2π - angle  # ensure angle is in [0°, 180°]
     return degrees(angle)
 ```
 
-**Clinical interpretation** via `interpret_anb()`: Maps ANB values to Class I/II/III classifications with plain-language descriptions:
-- ANB < 0°: Class III (underbite)
-- ANB 0–1°: Borderline
-- ANB 1–4°: Class I (normal)
-- ANB 4–7°: Mild Class II (overbite)
-- ANB > 7°: Class II (significant overbite)
+- `compute_sna(sella, nasion, a_point)` → angle at Nasion between S and A
+- `compute_snb(sella, nasion, b_point)` → angle at Nasion between S and B
+- `compute_anb(sna, snb)` → simply SNA minus SNB
+
+The `interpret_anb()` function maps the ANB value to a clinical classification (Class I/II/III) with a plain-language description.
 
 ### 9. Evaluation Pipeline: `evaluation.py`
 
-**Purpose:** Computes clinically meaningful metrics in **millimeters** (not pixels).
+**Purpose:** Computes how accurate the trained model is, using clinically meaningful metrics measured in **millimeters** (not pixels).
 
-**Why pixel spacing matters:** Different X-ray machines have different resolutions. An error of 10 pixels means very different things on different machines:
-- Machine A (0.089 mm/px): 10px error = 0.89mm ✅
-- Machine B (0.144 mm/px): 10px error = 1.44mm ⚠️
+**Why pixel spacing matters:** Different X-ray machines have different physical pixel sizes. An error of 10 pixels means very different things on different machines:
+- Machine A (0.089 mm/px): 10px error = 0.89mm ✅ (within clinical tolerance)
+- Machine B (0.144 mm/px): 10px error = 1.44mm ⚠️ (borderline)
 
-The evaluation pipeline uses per-image pixel spacing from the dataset CSV to convert pixel distances to millimeters before computing MRE:
+The evaluation pipeline looks up each image's pixel spacing from the dataset metadata and multiplies:
 
 ```python
 def compute_mre(pred, gt, pixel_spacings):
-    pixel_distances = euclidean_distance(pred, gt)  # in pixels
-    mm_distances = pixel_distances * pixel_spacings  # in mm
-    return mm_distances.mean()
+    pixel_distance = sqrt((pred_x - gt_x)² + (pred_y - gt_y)²)  # in pixels
+    mm_distance = pixel_distance * pixel_spacing                   # in millimeters
+    return mean(mm_distance)  # average across all landmarks and images
 ```
 
-**Coordinate rescaling:** The model operates on 512×512 resized images, but evaluation must happen in the original image resolution. Both predicted and ground truth coordinates are rescaled:
+**Coordinate rescaling:** The model operates on 512×512 resized images, but the original images may be different sizes (e.g., 2048×2048). Before computing errors, both predicted and ground truth coordinates are rescaled back to the original resolution:
 ```python
 scale_x = original_width / 512
 scale_y = original_height / 512
 ```
 
-**SDR computation:** For each threshold (2.0, 2.5, 3.0, 4.0mm), counts the percentage of all landmark predictions across all test images that fall within that distance of their ground truth.
+**SDR computation:** For each threshold (2.0mm, 2.5mm, 3.0mm, 4.0mm), counts the percentage of all landmark predictions (across all test images) that fall within that distance of their ground truth position.
 
 ### 10. Visualization: `overlay.py`
 
-**Purpose:** Creates publication-quality annotated cephalogram figures.
+**Purpose:** Creates publication-quality annotated X-ray images with landmarks and angle lines drawn on them.
 
-- `draw_landmarks()`: Plots colored circles at predicted positions, "×" markers at GT positions, dashed error lines connecting pred↔GT
-- `draw_angle_lines()`: Draws construction lines S–N (yellow), N–A (lime), N–B (orange)
-- `create_results_figure()`: Two-panel figure — left: annotated X-ray; right: angle values with normal ranges
+- `draw_landmarks()`: Plots colored circles at predicted positions, "×" markers at ground truth positions, and dashed error lines connecting them
+- `draw_angle_lines()`: Draws the three construction lines (S–N, N–A, N–B) used for angle measurement
+- `create_results_figure()`: Creates a two-panel figure — left panel has the annotated X-ray; right panel shows computed angles with normal ranges
 
-Uses `matplotlib.use("Agg")` for headless (server-safe) rendering.
+Uses `matplotlib.use("Agg")` for **headless rendering** — generating images without needing a screen (important for running on servers or inside Docker containers).
 
 ### 11. Streamlit App: `streamlit_app.py`
 
-**Purpose:** Demo-ready web interface for non-specialists.
-
-The app has built-in fallback code — if the `src/` modules can't be imported, it falls back to standalone implementations. This means the app can technically run without the full training pipeline installed.
+**Purpose:** The user-facing web interface that lets anyone upload an X-ray and see results without any coding or ML knowledge.
 
 **Key features:**
-- Model checkpoint auto-discovery (scans `checkpoints/` for `.pth` files)
-- Sample image loading from `sample_images/`
-- Real-time inference with MPS/CUDA/CPU auto-detection
-- Color-coded landmark overlay with PIL-based drawing
-- Angle metrics with delta-from-normal indicators
-- Detailed clinical interpretation covering all 3 angles individually
-- Per-landmark confidence score bars with warnings below 70%
-- Medical disclaimer
+- **Model auto-discovery:** Scans the `checkpoints/` folder for `.pth` model files
+- **Sample image loading:** Provides pre-loaded X-rays from `sample_images/`
+- **Real-time inference:** Runs the model on the uploaded image (using MPS/CUDA/CPU)
+- **Visualization:** Draws color-coded landmarks and angle lines on the X-ray using PIL (Python Imaging Library)
+- **Angle metrics:** Shows SNA, SNB, ANB with delta-from-normal indicators
+- **Clinical interpretation:** Detailed, plain-English explanation of all three angles — covering what each means, whether it's normal, and what it implies
+- **Confidence scores:** Per-landmark confidence bars with ⚠️ warnings below 70%
+- **Medical disclaimer:** Reminds users this is for demonstration only
+
+**Fallback design:** The app includes standalone implementations of key functions (preprocessing, angle computation, drawing). If the `src/` modules can't be imported, the app still works using these fallbacks. This means the Docker container doesn't need the full training pipeline installed.
 
 ---
 
 ## How `run.sh` Works
 
-The `run.sh` script (338 lines) is the single entry point for all project operations. It uses `set -euo pipefail` for strict error handling.
+The `run.sh` script (338 lines of Bash) is the single entry point for all project operations. Here's exactly what each command does internally.
 
-### Configuration (lines 20–30)
+### Script Configuration (lines 20–30)
 
 ```bash
 PROJECT_DIR="$(cd "$(dirname "$0")" && pwd)"   # absolute path to project root
 DOCKER_IMAGE="cephalometric-demo:0.1"          # Docker image name:tag
 DOCKER_CONTAINER="cephalometric-demo"          # Docker container name
 PORT=8501                                       # Streamlit port
-VENV_DIR="${PROJECT_DIR}/.venv"                 # virtual environment path
+VENV_DIR="${PROJECT_DIR}/.venv"                 # Python virtual environment path
 MLFLOW_PORT=5000                                # MLflow UI port
 ```
 
-PID files are stored in `/tmp/` (`cephalometric-local.pid`, `cephalometric-mlflow.pid`) to track background processes.
+Process IDs (PIDs) for background processes are saved to `/tmp/` so the script can stop them later.
 
-### `./run.sh setup`
+### `./run.sh setup` — Environment Setup
+
+A **virtual environment** (venv) is an isolated Python installation that keeps this project's packages separate from the system Python. This prevents version conflicts with other projects.
 
 1. Creates project directories: `data/`, `checkpoints/`, `mlruns/`, `sample_images/`
 2. Creates a Python 3.12 virtual environment at `.venv/` (skips if already exists)
-3. Upgrades pip, then installs all dependencies from `requirements.txt`
-4. Prints next steps (place data, run training, launch app)
+3. Upgrades pip (Python's package installer), then installs all packages listed in `requirements.txt`
+4. Prints next steps
 
-### `./run.sh train [args...]`
+### `./run.sh train [args...]` — Model Training
 
-1. Verifies `.venv/` exists (errors if not — tells you to run setup first)
-2. **Hardware detection:** Runs a quick Python check inside the venv:
+1. Verifies `.venv/` exists (errors out with a helpful message if not)
+2. **Hardware detection:** Runs a quick Python check:
    ```python
    import torch; print('yes' if torch.backends.mps.is_available() else 'no')
    ```
-   Prints whether MPS (Apple GPU) is available
-3. Launches `train.py` with the venv Python, forwarding all CLI arguments:
+   Prints whether Apple GPU acceleration is available
+3. Launches the training script, forwarding all command-line arguments:
    ```bash
    "${VENV_DIR}/bin/python" "${PROJECT_DIR}/train.py" "$@"
    ```
 
-### `./run.sh docker build`
+### `./run.sh docker build` — Build Docker Image
+
+A Docker image is a snapshot of a complete computer environment — OS, Python, all packages, and application code — packaged into a single file that can run anywhere.
 
 1. Verifies Docker is installed
-2. Runs `docker build -t cephalometric-demo:0.1 .`
-3. The Dockerfile uses `requirements-docker.txt` (CPU-only PyTorch) instead of the full requirements, saving ~2GB and 15 minutes of build time
-4. Copies `src/`, `app/`, `.streamlit/`, `checkpoints/`, and `sample_images/` into the image
-5. Uses wildcard patterns (`checkpoint[s]/`) so the build doesn't fail if directories are empty
+2. Runs `docker build -t cephalometric-demo:0.1 .` which:
+   - Starts from a minimal Linux image with Python 3.12
+   - Installs system libraries for image processing
+   - Installs Python packages from `requirements-docker.txt` (**CPU-only PyTorch** — saves ~2GB vs the full GPU version, since Docker is only used for inference)
+   - Copies the `src/`, `app/`, `.streamlit/`, `checkpoints/`, and `sample_images/` folders into the image
+   - Uses wildcard patterns (`checkpoint[s]/`) so the build doesn't fail if directories are empty
+3. Reports success
 
-### `./run.sh docker start`
+### `./run.sh docker start` — Run Docker Container
+
+A container is a running instance of an image — like starting a virtual computer from the snapshot.
 
 1. Verifies Docker is installed and the image exists
-2. Removes any stale container with the same name (`docker rm -f`)
-3. Starts a detached container:
+2. Removes any stale container with the same name
+3. Starts a detached container (runs in the background), mapping port 8501:
    ```bash
    docker run -d --name cephalometric-demo -p 8501:8501 cephalometric-demo:0.1
    ```
-4. **Health check loop:** Polls `http://localhost:8501/_stcore/health` every second, up to 20 attempts. Reports success once Streamlit responds.
+4. **Health check loop:** Polls `http://localhost:8501/_stcore/health` every second (up to 20 attempts) until Streamlit responds, then prints the URL
 
-### `./run.sh docker stop`
+### `./run.sh docker stop` — Stop Docker Container
 
-Stops and removes the container: `docker stop` → `docker rm`.
+Stops and removes the running container: `docker stop` → `docker rm`.
 
-### `./run.sh local start`
+### `./run.sh local start` — Run Streamlit Locally
 
-1. Verifies `.venv/` and `app/streamlit_app.py` exist
-2. Checks if Streamlit is already running (via PID file)
-3. Launches Streamlit in the background with `nohup`:
+1. Verifies the virtual environment and app file exist
+2. Checks if Streamlit is already running (via saved PID file)
+3. Launches Streamlit in the background:
    ```bash
    nohup .venv/bin/streamlit run app/streamlit_app.py \
        --server.port=8501 \
@@ -621,35 +692,38 @@ Stops and removes the container: `docker stop` → `docker rm`.
        --browser.gatherUsageStats=false \
        > /tmp/cephalometric-local.log 2>&1 &
    ```
-4. Saves the PID to `/tmp/cephalometric-local.pid`
-5. **Health check loop:** Same 20-attempt polling pattern as Docker
+   - `nohup` prevents the process from dying when the terminal is closed
+   - `--server.headless=true` suppresses the "open browser" prompt
+   - Output is logged to `/tmp/cephalometric-local.log`
+4. Saves the process ID to `/tmp/cephalometric-local.pid`
+5. Same health check polling loop as Docker
 
-### `./run.sh local stop`
+### `./run.sh local stop` — Stop Local Streamlit
 
-1. Reads PID from file, kills the process
-2. Fallback: if PID file is stale, uses `lsof -ti tcp:8501` to find and kill the process by port
+1. Reads the PID from the saved file and kills the process
+2. **Fallback:** If the PID file is stale (process already died), uses `lsof -ti tcp:8501` to find any process listening on port 8501 and kills it
 
-### `./run.sh mlflow start`
+### `./run.sh mlflow start` — Launch MLflow UI
 
-1. Creates `mlruns/` directory if needed
-2. Verifies `mlflow` binary exists in the venv
-3. Launches MLflow UI in the background:
+1. Creates the `mlruns/` directory if needed
+2. Verifies the `mlflow` command exists in the virtual environment
+3. Launches the MLflow UI server in the background:
    ```bash
    nohup .venv/bin/mlflow ui \
        --backend-store-uri "sqlite:///${PROJECT_DIR}/mlflow.db" \
        --port 5000 \
        > /tmp/cephalometric-mlflow.log 2>&1 &
    ```
-4. The `--backend-store-uri` points to the same SQLite database that the training script writes to, ensuring the UI shows all logged experiments and metrics
-5. **Health check loop:** 30 attempts (MLflow can be slow to start due to database initialization)
+   The `--backend-store-uri` flag points the UI to the same SQLite database that the training script writes metrics to. This is what connects the UI to the training runs.
+4. Health check loop (30 attempts — MLflow can be slower to start than Streamlit)
 
-### `./run.sh mlflow stop`
+### `./run.sh mlflow stop` — Stop MLflow UI
 
 Same PID/port-based stop pattern as `local stop`, but for port 5000.
 
 ### Command Routing (lines 294–337)
 
-The entrypoint uses a `case` statement to dispatch to the correct function:
+The script's entrypoint uses a `case` statement to dispatch the given command to the correct function:
 ```bash
 case "$MODE" in
     setup)  do_setup ;;
@@ -657,7 +731,7 @@ case "$MODE" in
     docker) case "$ACTION" in build|start|stop) ... ;; esac ;;
     local)  case "$ACTION" in start|stop) ... ;; esac ;;
     mlflow) case "$ACTION" in start|stop) ... ;; esac ;;
-    *)      usage ;;
+    *)      usage ;;  # print help
 esac
 ```
 
@@ -668,7 +742,7 @@ esac
 ### Prerequisites
 
 - **Python 3.12**
-- **Docker** (for containerized deployment)
+- **Docker** (only needed for containerized deployment)
 - macOS (Apple Silicon recommended for GPU training), Linux, or Windows
 
 ### Quick Start
@@ -681,7 +755,7 @@ cd CephalometryLandmarkDetection
 # Set up virtual environment + install all dependencies
 ./run.sh setup
 
-# Place your data in data/ (see Dataset section)
+# Place data in data/ (see Dataset section)
 
 # Train the model (50 epochs, ~50 min on Apple M4)
 ./run.sh train --epochs 50 --batch-size 4
@@ -707,7 +781,7 @@ cd CephalometryLandmarkDetection
 ./run.sh docker stop     # Stop container
 ```
 
-The Docker image uses CPU-only PyTorch (`requirements-docker.txt`) to keep the image small (~2GB vs ~5GB with CUDA). No GPU required for inference.
+The Docker image uses CPU-only PyTorch (`requirements-docker.txt`) to keep the image small (~2GB vs ~5GB with GPU libraries). GPU is not needed for inference — it's fast enough on CPU.
 
 ### Option 2: Local
 
@@ -716,7 +790,7 @@ The Docker image uses CPU-only PyTorch (`requirements-docker.txt`) to keep the i
 ./run.sh local stop      # Stop
 ```
 
-Local mode supports hot-reload — edit code and refresh the browser.
+Local mode supports **hot-reload** — edit code and refresh the browser to see changes immediately.
 
 ---
 
@@ -728,12 +802,12 @@ Download the [Aariz dataset](https://www.nature.com/articles/s41597-025-05542-3)
 
 ```
 data/
-├── cephalogram_machine_mappings.csv
+├── cephalogram_machine_mappings.csv    # Pixel spacing per X-ray machine
 ├── train/
-│   ├── Cephalograms/           # X-ray images (.png)
+│   ├── Cephalograms/                   # X-ray images (.png)
 │   └── AnnotationsByExperts/
-│       ├── junior/             # Junior orthodontist annotations (.json)
-│       └── senior/             # Senior orthodontist annotations (.json)
+│       ├── junior/                     # Junior orthodontist annotations (.json)
+│       └── senior/                     # Senior orthodontist annotations (.json)
 ├── val/
 │   ├── Cephalograms/
 │   └── AnnotationsByExperts/
@@ -749,7 +823,7 @@ data/
 ### 2. Run Training
 
 ```bash
-# Smoke test (verify pipeline works)
+# Smoke test (verify the pipeline works end-to-end)
 ./run.sh train --epochs 2 --batch-size 4
 
 # Full training
@@ -763,23 +837,23 @@ data/
 
 | Parameter | Default | Description |
 |-----------|---------|-------------|
-| `--epochs` | 100 | Number of training epochs |
-| `--batch-size` | 4 | Batch size (4 is safe for 16GB unified memory) |
-| `--img-size` | 512 | Input image resolution |
-| `--encoder` | resnet34 | Encoder backbone |
-| `--encoder-lr` | 1e-4 | Encoder learning rate (lower for pretrained weights) |
-| `--decoder-lr` | 1e-3 | Decoder learning rate (higher for random init) |
-| `--sigma` | 5.0 | Gaussian heatmap sigma (pixel spread of targets) |
+| `--epochs` | 100 | How many times to loop through all training images |
+| `--batch-size` | 4 | How many images to process at once (4 is safe for 16GB memory) |
+| `--img-size` | 512 | Resolution to resize all images to (pixels) |
+| `--encoder` | resnet34 | Which pretrained encoder backbone to use |
+| `--encoder-lr` | 1e-4 | Learning rate for pretrained encoder (small — preserve existing knowledge) |
+| `--decoder-lr` | 1e-3 | Learning rate for decoder (larger — learn from scratch) |
+| `--sigma` | 5.0 | How wide the Gaussian heatmap peaks are (in pixels) |
 | `--data-dir` | data | Path to dataset |
-| `--checkpoint-dir` | checkpoints | Path to save model weights |
+| `--checkpoint-dir` | checkpoints | Path to save model files |
 
 ### Hardware Acceleration
 
-| Platform | Device | Expected Speed |
-|----------|--------|---------------|
-| Apple Silicon (M1/M2/M3/M4) | MPS | ~60s/epoch |
+| Platform | GPU Backend | Expected Speed |
+|----------|-------------|---------------|
+| Apple Silicon (M1/M2/M3/M4) | MPS (Metal) | ~60s/epoch |
 | NVIDIA GPU | CUDA | ~20–40s/epoch |
-| CPU only | CPU | ~5–10min/epoch |
+| CPU only | — | ~5–10min/epoch |
 
 ---
 
@@ -790,17 +864,16 @@ data/
 ./run.sh mlflow stop     # Stop the UI
 ```
 
-### What Gets Logged
+### What You'll See in the MLflow UI
 
-| Category | Metrics |
-|----------|---------|
-| **Hyperparameters** | encoder, epochs, batch_size, learning rates, sigma, image size |
-| **Per-epoch** | train_loss, val_loss (as step-indexed curves) |
-| **Evaluation** | mre_overall_mm, per-landmark MRE, SDR at 2/2.5/3/4mm |
-| **Artifacts** | Best model checkpoint (best_model.pth) |
-| **Run naming** | `{encoder}-ep{epochs}-bs{batch}-img{size}` |
+- **Run list:** Each training run appears as a row with its name (e.g., `resnet34-ep50-bs4-img512`)
+- **Parameters:** All hyperparameters used for that run
+- **Metrics:** Click a run to see loss curves (train_loss and val_loss over epochs), final MRE, and SDR values
+- **Artifacts:** Download the trained model file directly from the UI
 
-MLflow stores all data in a local SQLite database (`mlflow.db`). The `run.sh mlflow start` command connects the MLflow UI to this same database via `--backend-store-uri sqlite:///mlflow.db`.
+### How It Works Internally
+
+Training writes metrics to `mlflow.db` (a SQLite database file). The MLflow UI server reads from this same file via `--backend-store-uri sqlite:///mlflow.db`. The database is gitignored (too large for version control).
 
 ---
 
