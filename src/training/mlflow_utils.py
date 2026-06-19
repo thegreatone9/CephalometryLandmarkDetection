@@ -89,9 +89,11 @@ def log_evaluation_metrics(
     sdr_dict : dict
         Successful Detection Rates at various thresholds.
     """
+    import re
     mlflow.log_metric("mre_overall_mm", mre_overall)
     for name, val in mre_per_landmark.items():
-        mlflow.log_metric(f"mre_{name}_mm", val)
+        safe_name = re.sub(r"[^a-zA-Z0-9_\-.\s:/]", "", name).strip().replace(" ", "_")
+        mlflow.log_metric(f"mre_{safe_name}_mm", val)
     for key, val in sdr_dict.items():
         mlflow.log_metric(key, val)
 
