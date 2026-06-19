@@ -31,7 +31,6 @@ try:
     from src.inference.predict import heatmap_to_coordinates, compute_confidence
     from src.inference.angles import compute_sna, compute_snb, compute_anb, interpret_anb
     from src.viz.overlay import draw_landmarks, draw_angle_lines
-    from src.data.preprocessing import preprocess_image  # expected helper
 
     _SRC_AVAILABLE = True
 except ImportError:
@@ -111,9 +110,19 @@ def _load_model(checkpoint_path: str):
         return None
 
     import torch
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    if torch.backends.mps.is_available():
+        device = torch.device("mps")
+    elif torch.cuda.is_available():
+        device = torch.device("cuda")
+    else:
+        device = torch.device("cpu")
     try:
-        model = create_model()
+        model = create_model(
+            encoder_name="resnet34",
+            encoder_weights=None,
+            in_channels=1,
+            num_classes=6,
+        )
         state = torch.load(checkpoint_path, map_location=device, weights_only=False)
         # Handle both raw state_dict and wrapped checkpoint dicts
         if isinstance(state, dict) and "model_state_dict" in state:
@@ -131,8 +140,6 @@ def _load_model(checkpoint_path: str):
 
 def _preprocess(img: Image.Image):
     """Resize & normalise image for model input. Returns (tensor, scale_factors)."""
-    if _SRC_AVAILABLE:
-        return preprocess_image(img, MODEL_INPUT_SIZE)
 
     # Fallback: basic preprocessing
     import torch
@@ -156,9 +163,9 @@ def _run_inference(model, device, tensor):
 def _extract_coords(heatmaps, scale):
     """Extract landmark coordinates from heatmaps."""
     if _SRC_AVAILABLE:
-        coords = heatmap_to_coordinates(heatmaps)
+        coords = heatmap_to_coordinates(heatmaps.squeeze(0)).cpu()  # (C, 2)
         # Scale back to original image space
-        scaled = [(x * scale[0], y * scale[1]) for (x, y) in coords]
+        scaled = [(float(c[0]) * scale[0], float(c[1]) * scale[1]) for c in coords]
         return scaled
 
     # Fallback
@@ -175,7 +182,8 @@ def _extract_coords(heatmaps, scale):
 def _extract_confidence(heatmaps):
     """Get per-landmark confidence (0–100)."""
     if _SRC_AVAILABLE:
-        return compute_confidence(heatmaps)
+        conf = compute_confidence(heatmaps.squeeze(0)).cpu()  # (C,)
+        return [float(c) for c in conf]
 
     hm = heatmaps.squeeze(0).cpu().numpy()
     confidences = []
