@@ -252,7 +252,7 @@ mlflow_start() {
 
     info "Starting MLflow UI on port $MLFLOW_PORT..."
     nohup "$VENV_DIR/bin/mlflow" ui \
-        --backend-store-uri "file://${MLFLOW_DIR}" \
+        --backend-store-uri "sqlite:///${PROJECT_DIR}/mlflow.db" \
         --port "$MLFLOW_PORT" \
         > /tmp/cephalometric-mlflow.log 2>&1 &
 
