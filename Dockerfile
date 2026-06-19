@@ -9,11 +9,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /app
 
-# ── Python deps (cached layer) ──────────────────────────────
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+# ── Python deps (CPU-only, cached layer) ────────────────────
+COPY requirements-docker.txt .
+RUN pip install --no-cache-dir -r requirements-docker.txt
 
-# ── Application code ────────────────────────────────────────
+# ── Application code (inference only) ───────────────────────
 COPY src/ src/
 COPY app/ app/
 COPY .streamlit/ .streamlit/

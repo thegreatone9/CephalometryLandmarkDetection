@@ -1,0 +1,22 @@
+# Large data files
+/data/
+.venv/
+venv/
+__pycache__/
+*.pyc
+
+# Git
+.git/
+.gitignore
+
+# IDE
+.vscode/
+.idea/
+
+# MLflow database (runtime, not build)
+mlflow.db
+mlruns/
+
+# Docs
+*.md
+LICENSE
