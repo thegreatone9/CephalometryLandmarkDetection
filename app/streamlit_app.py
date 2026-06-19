@@ -363,7 +363,7 @@ def _generate_clinical_interpretation(sna: float, snb: float, anb: float) -> str
     # ── Disclaimer ──
     sections.append(
         "---\n"
-        "⚠️ _This is an AI-generated analysis for demonstration purposes only. "
+        "⚠️ _This is an analysis for demonstration purposes only. "
         "It should **not** be used for clinical diagnosis. A qualified orthodontist "
         "would consider many additional factors including dental angles, soft tissue "
         "profile, growth patterns, and patient history._"
@@ -648,9 +648,11 @@ with tab_demo:
                         st.stop()
 
                 # -------------------------------------------------------
-                # Display results
+                # Display results — Layout
                 # -------------------------------------------------------
-                col_img, col_info = st.columns([3, 2])
+
+                # ── Row 1: Image + Angle Metrics side by side ──
+                col_img, col_metrics = st.columns([3, 2])
 
                 with col_img:
                     st.image(
@@ -677,7 +679,7 @@ with tab_demo:
                         unsafe_allow_html=True,
                     )
 
-                with col_info:
+                with col_metrics:
                     # --- Angle Measurements ---
                     st.markdown("#### 📐 Angle Measurements")
                     m1, m2, m3 = st.columns(3)
@@ -686,12 +688,6 @@ with tab_demo:
                     m3.metric("ANB", f"{anb:.1f}°",
                               delta=f"{anb - 2:.1f}° from typical" if abs(anb - 2) > 0.5 else "typical range",
                               delta_color="off")
-
-                    st.divider()
-
-                    # --- Clinical Interpretation ---
-                    st.markdown("#### 🩺 Clinical Interpretation")
-                    st.markdown(_generate_clinical_interpretation(sna, snb, anb))
 
                     st.divider()
 
@@ -715,7 +711,7 @@ with tab_demo:
 
                         st.markdown(
                             f'<div style="display:flex;align-items:center;gap:8px;">'
-                            f'<span style="min-width:110px;font-size:0.85rem;">'
+                            f'<span style="min-width:120px;font-size:0.85rem;">'
                             f'{name}{warning}</span>'
                             f'<div class="confidence-bar-bg" style="flex:1;">'
                             f'<div class="confidence-bar-fill" '
@@ -723,6 +719,11 @@ with tab_demo:
                             f'{conf:.0f}%</div></div></div>',
                             unsafe_allow_html=True,
                         )
+
+                # ── Row 2: Clinical Interpretation (full width below) ──
+                st.divider()
+                st.markdown("#### 🩺 Clinical Interpretation")
+                st.markdown(_generate_clinical_interpretation(sna, snb, anb))
 
     elif input_mode is not None:
         st.error(
