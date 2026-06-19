@@ -6,6 +6,7 @@ checkpoints/
 
 # MLflow local run tracking folder (stale file-based store)
 mlruns/
+mlflow.db
 
 # MLflow artifacts and database
 artifacts/
