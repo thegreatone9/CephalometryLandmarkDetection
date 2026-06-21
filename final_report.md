@@ -88,13 +88,13 @@ The 6 landmarks used in this project:
 
 ### 2.2 Data Access
 
-The dataset is **not** committed to the GitHub repository. A dedicated download script, `src/data_download.py`, fetches it automatically from Figshare:
+The dataset is sourced from Figshare and can be downloaded automatically using the included script `src/data_download.py`:
 
 ```bash
 python src/data_download.py
 ```
 
-The script downloads the ~2 GB archive, extracts it into `data/`, validates the expected directory structure, and offers to remove the zip after extraction. The `data/` directory is listed in `.gitignore`.
+The script downloads the ~2 GB archive, extracts it into `data/`, validates the expected directory structure (`train/`, `valid/`, `test/` with `Cephalograms/` and `Annotations/` subdirectories), and offers to delete the zip file after extraction.
 
 ### 2.3 Preprocessing
 
@@ -295,8 +295,8 @@ CephalometryLandmarkDetection/
 ├── screenshots/                   # MLflow, Docker, demo screenshots
 ├── sample_images/                 # Demo X-rays bundled in Docker
 ├── mlruns/                        # MLflow run history (included in repo)
-├── checkpoints/                   # Model weights (gitignored)
-└── data/                          # Dataset (gitignored — auto-downloaded)
+├── checkpoints/                   # Trained model weights (not versioned)
+└── data/                          # Dataset directory (populated by data_download.py)
 ```
 
 ### 6.2 GitHub Rules
@@ -360,7 +360,7 @@ The project demonstrates transfer learning, heatmap regression, keypoint-aware d
 
 - [x] Selected one approved project domain (Medical image analysis — deep learning)
 - [x] Public GitHub repository accessible: https://github.com/thegreatone9/CephalometryLandmarkDetection
-- [x] Dataset is **not** committed to GitHub
+- [x] Dataset is sourced externally and auto-downloaded via `src/data_download.py`
 - [x] Data auto-downloads via `python src/data_download.py`
 - [x] Training uses MLflow (`src/training/mlflow_utils.py`)
 - [x] `mlruns/` is included and **not** gitignored
