@@ -92,8 +92,11 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument(
         "--checkpoint-dir",
         type=str,
-        default="checkpoints",
-        help="Directory to save model checkpoints.",
+        default=None,
+        help=(
+            "Directory to save model checkpoints. "
+            "Defaults to checkpoints/{encoder}-ep{epochs}-bs{batch}-img{size}."
+        ),
     )
     parser.add_argument(
         "--num-workers",
@@ -172,6 +175,13 @@ def main(argv: list[str] | None = None) -> None:
     """Main training entrypoint."""
     args = parse_args(argv)
     device = get_device()
+
+    # Derive a run-specific checkpoint directory if none was given.
+    # Pattern: checkpoints/{encoder}-ep{epochs}-bs{batch}-img{size}
+    # This ensures different runs never overwrite each other's saved models.
+    run_tag = f"{args.encoder}-ep{args.epochs}-bs{args.batch_size}-img{args.img_size}"
+    if args.checkpoint_dir is None:
+        args.checkpoint_dir = str(Path("checkpoints") / run_tag)
 
     print("=" * 60)
     print("Cephalometric Landmark Detection — Training")

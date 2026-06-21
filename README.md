@@ -400,7 +400,7 @@ python train.py --epochs 50 --batch-size 4 --encoder resnet34 --img-size 512
 | `--decoder-lr` | 1e-3 | Decoder learning rate |
 | `--sigma` | 5.0 | Gaussian heatmap sigma |
 | `--data-dir` | data | Path to dataset |
-| `--checkpoint-dir` | checkpoints | Path to save model weights |
+| `--checkpoint-dir` | `checkpoints/<run-name>` | Directory to save model weights (auto-named per run) |
 
 ### Hardware Acceleration
 
