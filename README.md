@@ -222,6 +222,23 @@ cephalometry/
 - **Docker** (for containerized deployment)
 - macOS, Linux, or Windows with Python support
 
+### Key Dependencies
+
+| Package | Purpose |
+|---------|---------|
+| **PyTorch** ≥ 2.0 | Deep learning framework (model training and inference) |
+| **segmentation-models-pytorch** ≥ 0.3 | Pretrained U-Net architecture with ResNet34 encoder |
+| **Streamlit** ≥ 1.30 | Web UI for the prediction demo app |
+| **MLflow** ≥ 2.10 | Experiment tracking (hyperparameters, metrics, artifacts) |
+| **Albumentations** ≥ 1.3 | Keypoint-aware image augmentation during training |
+| **OpenCV** (headless) ≥ 4.9 | Image I/O and processing |
+| **NumPy**, **Pandas** | Array operations and CSV/metadata handling |
+| **Matplotlib** | Landmark overlay visualization |
+| **Pillow** ≥ 10.0 | Image loading and drawing in the Streamlit app |
+| **scikit-learn** ≥ 1.3 | Utility functions for evaluation |
+
+All dependencies are installed automatically via `pip install -r requirements.txt`.
+
 ### Option A: Using `run.sh` (Recommended)
 
 ```bash
