@@ -371,7 +371,3 @@ The project demonstrates transfer learning, heatmap regression, keypoint-aware d
 - [x] Report includes Docker screenshot (`screenshots/docker_app_running.png`)
 - [x] Course techniques clearly documented (Section 3.1)
 - [ ] Deadline: **25 June 2026**
-
-### B. Final Notes
-
-This project is submitted as part of the mandatory SICIP certification program at BRAC University. The system is fully functional, reproducible from a fresh clone, and demonstrates a meaningful real-world application of deep learning to medical image analysis. All experiments, results, and implementation details are documented in both this report and the project README.
