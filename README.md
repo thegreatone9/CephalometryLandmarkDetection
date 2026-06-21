@@ -90,44 +90,55 @@ By drawing lines between these landmarks and measuring angles, orthodontists det
 
 ## Results & Performance
 
-Trained on the **Aariz dataset** (700 training images, 150 validation, 150 test) for 50 epochs on an Apple M4 GPU.
+Two training runs were conducted on the **Aariz dataset** (700 train / 150 val / 150 test) for 50 epochs each on an Apple M4 GPU, varying the input resolution to study its effect on landmark accuracy.
 
-### Test Set Evaluation
+### Run Comparison
 
-| Metric | Value |
-|--------|-------|
-| **Overall MRE** | **0.78 mm** |
-| **SDR @ 2.0mm** | **94.9%** |
-| **SDR @ 2.5mm** | 97.4% |
-| **SDR @ 3.0mm** | 98.8% |
-| **SDR @ 4.0mm** | 99.7% |
+| Metric | Run 1: ResNet34 @ 512px | Run 2: ResNet34 @ 640px |
+|--------|------------------------|------------------------|
+| **Overall MRE** | **0.78 mm** ✅ | 17.02 mm ❌ |
+| **SDR @ 2.0mm** | **94.9%** | 77.0% |
+| **SDR @ 2.5mm** | 97.4% | 80.0% |
+| **SDR @ 3.0mm** | 98.8% | 81.8% |
+| **SDR @ 4.0mm** | 99.7% | 82.8% |
+| Best val loss | 0.000390 (epoch 4) | 0.000074 (epoch 49) |
+| Epoch time | ~60s | ~81s |
 
-> **MRE** (Mean Radial Error) = average distance between predicted and actual landmark positions.
+> **MRE** (Mean Radial Error) = average distance between predicted and actual landmark positions in millimeters.
 > **SDR** (Successful Detection Rate) = percentage of landmarks within a given distance threshold.
-> The **clinical acceptability threshold is 2mm** — our model places **94.9% of landmarks within this tolerance**.
+> The **clinical acceptability threshold is 2mm**.
 
 ### Per-Landmark Accuracy
 
-| Landmark | MRE (mm) |
-|----------|----------|
-| Menton (Me) | 0.51 |
-| Pogonion (Pog) | 0.61 |
-| Sella (S) | 0.73 |
-| B-point (B) | 0.92 |
-| Nasion (N) | 0.94 |
-| A-point (A) | 0.98 |
+| Landmark | Run 1: 512px MRE | Run 2: 640px MRE |
+|----------|-----------------|-----------------|
+| Menton (Me) | 0.51 mm | 0.52 mm |
+| Pogonion (Pog) | 0.61 mm | 0.69 mm |
+| Sella (S) | 0.73 mm | **97.89 mm** 🔴 |
+| B-point (B) | 0.92 mm | 1.13 mm |
+| Nasion (N) | 0.94 mm | 0.86 mm |
+| A-point (A) | 0.98 mm | 1.02 mm |
+
+### Key Finding: Sella Failure at 640px
+
+The 640px run's catastrophic overall MRE (17.02mm) is caused entirely by a single landmark — **Sella** — which the model placed ~98mm from its true location on average. The remaining 5 landmarks performed comparably to the 512px run (0.52–1.13mm).
+
+**Why Sella?** Sella (S) marks the center of the pituitary fossa, a subtle internal skull structure with no sharp visual edge. At 640px with the same σ=5.0 heatmap, the Gaussian target is proportionally *narrower* relative to the image (5/640 vs 5/512), creating a sharper, harder-to-learn signal. Landmarks with strong visual anchors (Menton, Pogonion, Nasion) are unaffected; Sella's diffuse, edge-free appearance makes it sensitive to this change.
+
+This finding illustrates that **higher input resolution does not automatically improve detection accuracy**, particularly for anatomically ambiguous landmarks. A larger sigma (e.g. σ=8.0) at 640px, or a multi-stage approach with a dedicated refinement pass for Sella, would likely recover performance.
+
+**Run 1 (512px) is the production model** used by the inference app.
 
 ### Context
 
 | Method | Overall MRE | SDR @ 2mm |
 |--------|------------|-----------|
 | Human inter-observer variability | 0.49 mm | — |
-| **This model (U-Net + ResNet34)** | **0.78 mm** | **94.9%** |
+| **This model — Run 1 (U-Net + ResNet34 @ 512px)** | **0.78 mm** | **94.9%** |
 | Literature SOTA (multi-stage) | ~1.0 mm | 80–90% |
 
-Our single-stage model achieves **near-expert-level precision**.
-
 ---
+
 
 ## Architecture & Technical Details
 
