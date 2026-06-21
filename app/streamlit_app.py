@@ -60,14 +60,20 @@ MODEL_INPUT_SIZE = (512, 512)  # H, W expected by the model
 # ============================================================================
 
 def _discover_checkpoints() -> list[str]:
-    """Return a sorted list of checkpoint file paths found in CHECKPOINT_DIR."""
+    """Return checkpoint file paths found in CHECKPOINT_DIR.
+
+    Sorted by modification time (newest first) so the most recently trained
+    model is pre-selected in the dropdown.
+    """
     if not CHECKPOINT_DIR.exists():
         return []
     extensions = {".pt", ".pth", ".ckpt", ".bin"}
     found = sorted(
-        str(p) for p in CHECKPOINT_DIR.rglob("*") if p.suffix in extensions
+        (p for p in CHECKPOINT_DIR.rglob("*") if p.suffix in extensions),
+        key=lambda p: p.stat().st_mtime,
+        reverse=True,  # newest first → becomes the default selection
     )
-    return found
+    return [str(p) for p in found]
 
 
 def _discover_samples() -> list[Path]:
