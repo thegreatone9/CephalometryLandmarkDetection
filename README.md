@@ -90,19 +90,21 @@ By drawing lines between these landmarks and measuring angles, orthodontists det
 
 ## Results & Performance
 
-Two training runs were conducted on the **Aariz dataset** (700 train / 150 val / 150 test) for 50 epochs each on an Apple M4 GPU, varying the input resolution to study its effect on landmark accuracy.
+Three training runs were conducted on the **Aariz dataset** (700 train / 150 val / 150 test) for 50 epochs each on an Apple M4 GPU, comparing input resolution and encoder architecture.
 
 ### Run Comparison
 
-| Metric | Run 1: ResNet34 @ 512px | Run 2: ResNet34 @ 640px |
-|--------|------------------------|------------------------|
-| **Overall MRE** | **0.78 mm** ✅ | 17.02 mm ❌ |
-| **SDR @ 2.0mm** | **94.9%** | 77.0% |
-| **SDR @ 2.5mm** | 97.4% | 80.0% |
-| **SDR @ 3.0mm** | 98.8% | 81.8% |
-| **SDR @ 4.0mm** | 99.7% | 82.8% |
-| Best val loss | 0.000390 (epoch 4) | 0.000074 (epoch 49) |
-| Epoch time | ~60s | ~81s |
+| Metric | Run 1: ResNet34 @ 512px | Run 2: ResNet34 @ 640px | Run 3: EfficientNet-b0 @ 512px |
+|--------|------------------------|------------------------|-------------------------------|
+| **Overall MRE** | **0.78 mm** ✅ | 17.02 mm ❌ | 46.27 mm ❌ |
+| **SDR @ 2.0mm** | **94.9%** | 77.0% | 42.7% |
+| **SDR @ 2.5mm** | 97.4% | 80.0% | 45.7% |
+| **SDR @ 3.0mm** | 98.8% | 81.8% | 47.0% |
+| **SDR @ 4.0mm** | 99.7% | 82.8% | 48.1% |
+| Best val loss | 0.000390 (epoch 4) | 0.000074 (epoch 49) | 0.000272 (epoch 29) |
+| Val loss stability | Stable ✅ | Stable ✅ | Highly oscillating ⚠️ |
+| Epoch time | ~60s | ~81s | ~64s |
+| Checkpoint | `resnet34-ep50-bs4-img512/` | `resnet34-ep50-bs4-img640/` | `efficientnet-b0-ep50-bs4-img512/` |
 
 > **MRE** (Mean Radial Error) = average distance between predicted and actual landmark positions in millimeters.
 > **SDR** (Successful Detection Rate) = percentage of landmarks within a given distance threshold.
@@ -110,33 +112,30 @@ Two training runs were conducted on the **Aariz dataset** (700 train / 150 val /
 
 ### Per-Landmark Accuracy
 
-| Landmark | Run 1: 512px MRE | Run 2: 640px MRE |
-|----------|-----------------|-----------------|
-| Menton (Me) | 0.51 mm | 0.52 mm |
-| Pogonion (Pog) | 0.61 mm | 0.69 mm |
-| Sella (S) | 0.73 mm | **97.89 mm** 🔴 |
-| B-point (B) | 0.92 mm | 1.13 mm |
-| Nasion (N) | 0.94 mm | 0.86 mm |
-| A-point (A) | 0.98 mm | 1.02 mm |
+| Landmark | Run 1: ResNet34 512px | Run 2: ResNet34 640px | Run 3: EfficientNet-b0 512px |
+|----------|-----------------------|-----------------------|------------------------------|
+| Menton (Me) | **0.51 mm** | 0.52 mm | 1.49 mm |
+| Pogonion (Pog) | **0.61 mm** | 0.69 mm | 1.45 mm |
+| Sella (S) | **0.73 mm** | 97.89 mm 🔴 | 108.09 mm 🔴 |
+| B-point (B) | **0.92 mm** | 1.13 mm | 2.86 mm |
+| Nasion (N) | **0.94 mm** | 0.86 mm | 104.13 mm 🔴 |
+| A-point (A) | **0.98 mm** | 1.02 mm | 59.59 mm 🔴 |
 
-### Key Finding: Sella Failure at 640px
+### Key Findings
 
-The 640px run's catastrophic overall MRE (17.02mm) is caused entirely by a single landmark — **Sella** — which the model placed ~98mm from its true location on average. The remaining 5 landmarks performed comparably to the 512px run (0.52–1.13mm).
+**Run 2 — Resolution (640px):** The overall MRE of 17.02mm is caused entirely by **Sella** (97.89mm error). The other 5 landmarks performed comparably to Run 1. Sella marks the center of the pituitary fossa — a subtle internal structure with no sharp edge. At 640px with the same σ=5.0, the Gaussian target is proportionally narrower (5/640 vs 5/512), creating a harder-to-learn signal for this already-ambiguous landmark. Higher resolution does not automatically improve detection accuracy for all landmarks.
 
-**Why Sella?** Sella (S) marks the center of the pituitary fossa, a subtle internal skull structure with no sharp visual edge. At 640px with the same σ=5.0 heatmap, the Gaussian target is proportionally *narrower* relative to the image (5/640 vs 5/512), creating a sharper, harder-to-learn signal. Landmarks with strong visual anchors (Menton, Pogonion, Nasion) are unaffected; Sella's diffuse, edge-free appearance makes it sensitive to this change.
+**Run 3 — Encoder (EfficientNet-b0):** Training was highly unstable — val loss oscillated wildly from 0.000272 to 0.258586 across epochs, indicating the model struggled to converge. Despite 50 epochs, 4 of 6 landmarks failed catastrophically. Two likely causes: (1) EfficientNet's irregular feature map sizes and depthwise separable convolutions align poorly with the U-Net decoder's skip connections, which expect standard strided feature maps; (2) the same learning rates used for ResNet34 may be unsuitable for EfficientNet's architecture.
 
-This finding illustrates that **higher input resolution does not automatically improve detection accuracy**, particularly for anatomically ambiguous landmarks. A larger sigma (e.g. σ=8.0) at 640px, or a multi-stage approach with a dedicated refinement pass for Sella, would likely recover performance.
-
-**Run 1 (512px) is the production model** used by the inference app.
+**Conclusion:** ResNet34 @ 512px is the clear winner for this task — stable training, fast convergence (best model by epoch 4), and near-expert-level accuracy. It is the model used in production by the inference app.
 
 ### Context
 
 | Method | Overall MRE | SDR @ 2mm |
 |--------|------------|-----------|
 | Human inter-observer variability | 0.49 mm | — |
-| **This model — Run 1 (U-Net + ResNet34 @ 512px)** | **0.78 mm** | **94.9%** |
+| **This project — Run 1 (U-Net + ResNet34 @ 512px)** | **0.78 mm** | **94.9%** |
 | Literature SOTA (multi-stage) | ~1.0 mm | 80–90% |
-
 ---
 
 
