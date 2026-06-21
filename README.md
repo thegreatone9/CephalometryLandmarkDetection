@@ -136,6 +136,7 @@ Three training runs were conducted on the **Aariz dataset** (700 train / 150 val
 | Human inter-observer variability | 0.49 mm | — |
 | **This project — Run 1 (U-Net + ResNet34 @ 512px)** | **0.78 mm** | **94.9%** |
 | Literature SOTA (multi-stage) | ~1.0 mm | 80–90% |
+
 ---
 
 
