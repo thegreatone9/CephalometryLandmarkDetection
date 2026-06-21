@@ -469,7 +469,11 @@ with st.sidebar:
         selected_checkpoint = st.selectbox(
             "Choose a checkpoint",
             options=checkpoints,
-            format_func=lambda p: Path(p).name,
+            format_func=lambda p: (
+                f"{Path(p).parent.name}/{Path(p).name}"
+                if Path(p).parent.name != "checkpoints"
+                else Path(p).name
+            ),
             help="Select a trained model checkpoint to use for inference.",
         )
     else:
