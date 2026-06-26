@@ -2,6 +2,8 @@
 
 **Automated orthodontic analysis using deep learning to detect anatomical landmarks on lateral skull X-rays and compute clinically meaningful jaw alignment measurements.**
 
+![AI Orthodontic Landmark Detection Precision](screenshots/AI_Orthodontic_Landmark_Detection_Precision.png)
+
 [![Python 3.12](https://img.shields.io/badge/python-3.12-blue.svg)](https://www.python.org/downloads/)
 [![PyTorch](https://img.shields.io/badge/PyTorch-2.x-red.svg)](https://pytorch.org/)
 [![Streamlit](https://img.shields.io/badge/Streamlit-1.x-FF4B4B.svg)](https://streamlit.io/)
