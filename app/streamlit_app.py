@@ -123,8 +123,22 @@ def _load_model(checkpoint_path: str):
     else:
         device = torch.device("cpu")
     try:
+        # Infer encoder from checkpoint directory name
+        # e.g. "checkpoints/efficientnet-b0-ep50-bs4-img512/best_model.pth" → "efficientnet-b0"
+        parent_name = Path(checkpoint_path).parent.name
+        known_encoders = [
+            "efficientnet-b0", "efficientnet-b1", "efficientnet-b2",
+            "efficientnet-b3", "efficientnet-b4",
+            "resnet18", "resnet34", "resnet50", "resnet101",
+        ]
+        encoder_name = "resnet34"  # default fallback
+        for enc in sorted(known_encoders, key=len, reverse=True):
+            if parent_name.startswith(enc):
+                encoder_name = enc
+                break
+
         model = create_model(
-            encoder_name="resnet34",
+            encoder_name=encoder_name,
             encoder_weights=None,
             in_channels=1,
             num_classes=6,
