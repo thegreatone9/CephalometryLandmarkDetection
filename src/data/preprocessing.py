@@ -48,7 +48,7 @@ def get_train_transforms(image_size: int = 512) -> Compose:
                 translate_percent={"x": (-0.05, 0.05), "y": (-0.05, 0.05)},
                 scale=(0.9, 1.1),
                 rotate=0,
-                mode=0,
+                border_mode=0,
                 p=0.5,
             ),
             A.ElasticTransform(alpha=30, sigma=5, p=0.2),
