@@ -43,6 +43,7 @@ def create_model(
         encoder_weights=encoder_weights,
         in_channels=in_channels,
         classes=num_classes,
+        decoder_attention_type="scse",
     )
     return model
 

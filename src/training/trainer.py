@@ -2,9 +2,9 @@
 Training loop for cephalometric landmark heatmap regression.
 
 Handles:
-- MSE loss between predicted and ground-truth heatmaps
+- AdaptiveWingLoss between predicted and ground-truth heatmaps
 - Adam optimiser with differential LR (encoder / decoder)
-- ReduceLROnPlateau scheduler (monitors val loss)
+- CosineAnnealingWarmRestarts scheduler
 - Best-model checkpointing
 - Device auto-detection: MPS → CUDA → CPU
 """
@@ -18,7 +18,7 @@ from typing import Optional
 import torch
 import torch.nn as nn
 from torch.optim import Adam
-from torch.optim.lr_scheduler import ReduceLROnPlateau
+from torch.optim.lr_scheduler import CosineAnnealingWarmRestarts
 from torch.utils.data import DataLoader
 
 from src.models.unet import create_model, get_parameter_groups
@@ -108,15 +108,16 @@ class Trainer:
         self.optimizer = Adam(param_groups)
 
         # Scheduler
-        self.scheduler = ReduceLROnPlateau(
+        self.scheduler = CosineAnnealingWarmRestarts(
             self.optimizer,
-            mode="min",
-            factor=0.5,
-            patience=10,
+            T_0=20,
+            T_mult=2,
+            eta_min=1e-6,
         )
 
         # Loss
-        self.criterion = nn.MSELoss()
+        from src.training.losses import AdaptiveWingLoss
+        self.criterion = AdaptiveWingLoss(omega=14, theta=0.5, epsilon=1, alpha=2.1)
 
         # Tracking
         self.best_val_loss = float("inf")
@@ -195,7 +196,7 @@ class Trainer:
             val_loss = self._validate(val_loader)
             elapsed = time.time() - t0
 
-            self.scheduler.step(val_loss)
+            self.scheduler.step()
 
             # Checkpoint best model
             if val_loss < self.best_val_loss:

@@ -39,16 +39,30 @@ except ImportError:
 # ---------------------------------------------------------------------------
 # Landmark metadata
 # ---------------------------------------------------------------------------
-LANDMARK_NAMES = ["Sella (S)", "Nasion (N)", "A-point (A)", "B-point (B)",
-                  "Pogonion (Pog)", "Menton (Me)"]
-LANDMARK_SHORT = ["S", "N", "A", "B", "Pog", "Me"]
+LANDMARK_NAMES = [
+    "A-point (A)", "Anterior Nasal Spine (ANS)", "B-point (B)",
+    "Menton (Me)", "Nasion (N)", "Orbitale (Or)", "Pogonion (Pog)",
+    "Posterior Nasal Spine (PNS)", "Pronasale (Pn)", "Ramus (R)",
+    "Sella (S)", "Articulare (Ar)", "Condylion (Co)", "Gnathion (Gn)",
+    "Gonion (Go)", "Porion (Po)", "Lower 2nd PM Cusp (LPM)",
+    "Lower Incisor Tip (LIT)", "Lower Molar Cusp (LMT)",
+    "Upper 2nd PM Cusp (UPM)", "Upper Incisor Apex (UIA)",
+    "Upper Incisor Tip (UIT)", "Upper Molar Cusp (UMT)",
+    "Lower Incisor Apex (LIA)", "Labrale Inferius (Li)",
+    "Labrale Superius (Ls)", "Soft Tissue Nasion (N`)",
+    "Soft Tissue Pogonion (Pog`)", "Subnasale (Sn)",
+]
+LANDMARK_SHORT = [
+    "A", "ANS", "B", "Me", "N", "Or", "Pog", "PNS", "Pn", "R",
+    "S", "Ar", "Co", "Gn", "Go", "Po", "LPM", "LIT", "LMT",
+    "UPM", "UIA", "UIT", "UMT", "LIA", "Li", "Ls", "N`", "Pog`", "Sn",
+]
+
+# Generate 29 distinct colors via HSV spacing
+import colorsys as _colorsys
 LANDMARK_COLORS = [
-    (255, 80, 80),    # S  — red
-    (80, 180, 255),   # N  — blue
-    (80, 255, 80),    # A  — green
-    (255, 200, 60),   # B  — yellow
-    (200, 80, 255),   # Pog — purple
-    (255, 150, 80),   # Me — orange
+    tuple(int(c * 255) for c in _colorsys.hsv_to_rgb(i / 29, 0.85, 0.95))
+    for i in range(29)
 ]
 GT_COLOR = (0, 255, 200)  # cyan-ish for ground truth
 
@@ -141,7 +155,7 @@ def _load_model(checkpoint_path: str):
             encoder_name=encoder_name,
             encoder_weights=None,
             in_channels=1,
-            num_classes=6,
+            num_classes=len(LANDMARK_NAMES),
         )
         state = torch.load(checkpoint_path, map_location=device, weights_only=False)
         # Handle both raw state_dict and wrapped checkpoint dicts
@@ -791,7 +805,7 @@ with tab_how:
         The model was **trained on X-ray images where doctors had marked these
         points by hand**, and learned to recognize the same anatomical features.
         For each X-ray, the AI produces a **confidence map** (called a *heatmap*)
-        for each of the 6 landmarks — think of it as a heat-sensitive overlay where
+        for each of the 29 landmarks — think of it as a heat-sensitive overlay where
         brighter areas indicate "the landmark is more likely here." The model then
         picks the **brightest point** on each heatmap as its prediction.
 
@@ -805,20 +819,26 @@ with tab_how:
 
     st.divider()
 
-    # --- The 6 Landmarks ---
-    st.subheader("📍 The 6 Landmarks")
+    # --- The 29 Landmarks ---
+    st.subheader("📍 The 29 Landmarks")
     st.markdown(
         """
-        This demo focuses on **6 key cephalometric landmarks**:
+        This model detects **all 29 Aariz cephalometric landmarks**, spanning
+        skeletal, dental, and soft-tissue anatomy:
 
-        | # | Landmark | Abbreviation | Description |
-        |---|----------|:---:|-------------|
-        | 1 | Sella | **S** | Center of the pituitary fossa (a bony pocket in the base of the skull) |
-        | 2 | Nasion | **N** | The junction where the frontal bone meets the nasal bones |
-        | 3 | A-point | **A** | The deepest concavity on the front of the upper jaw (maxilla) |
-        | 4 | B-point | **B** | The deepest concavity on the front of the lower jaw (mandible) |
-        | 5 | Pogonion | **Pog** | The most anterior (forward) point of the chin |
-        | 6 | Menton | **Me** | The lowest point of the chin outline |
+        **Skeletal (15):** Sella (S), Nasion (N), A-point (A), B-point (B),
+        Pogonion (Pog), Menton (Me), Gnathion (Gn), Gonion (Go),
+        Articulare (Ar), Condylion (Co), Porion (Po), Orbitale (Or),
+        Anterior Nasal Spine (ANS), Posterior Nasal Spine (PNS), Ramus (R)
+
+        **Dental (8):** Upper Incisor Tip (UIT), Upper Incisor Apex (UIA),
+        Lower Incisor Tip (LIT), Lower Incisor Apex (LIA),
+        Upper Molar Cusp (UMT), Lower Molar Cusp (LMT),
+        Upper 2nd PM Cusp (UPM), Lower 2nd PM Cusp (LPM)
+
+        **Soft Tissue (6):** Pronasale (Pn), Subnasale (Sn),
+        Labrale Superius (Ls), Labrale Inferius (Li),
+        Soft Tissue Nasion (N'), Soft Tissue Pogonion (Pog')
 
         From **S, N, A, and B**, the app computes three angles:
         - **SNA** — relates the upper jaw to the skull base
