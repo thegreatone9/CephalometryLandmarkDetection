@@ -101,7 +101,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument(
         "--num-workers",
         type=int,
-        default=0,
+        default=4,
         help="DataLoader worker count (0 = main process).",
     )
     return parser.parse_args(argv)

@@ -7,6 +7,7 @@ Handles:
 - CosineAnnealingWarmRestarts scheduler
 - Best-model checkpointing
 - Device auto-detection: MPS → CUDA → CPU
+- Mixed-precision training (AMP)
 """
 
 from __future__ import annotations
@@ -91,6 +92,14 @@ class Trainer:
         self.checkpoint_dir.mkdir(parents=True, exist_ok=True)
         self.device = device or get_device()
 
+        # Mixed-precision setup
+        self._amp_dtype: torch.dtype | None = None
+        if self.device.type == "cuda":
+            self._amp_dtype = torch.float16
+        elif self.device.type == "mps":
+            self._amp_dtype = torch.float16
+        self.scaler = torch.amp.GradScaler(enabled=self._amp_dtype is not None and self.device.type == "cuda")
+
         # Model
         self.model = create_model(
             encoder_name=encoder_name,
@@ -133,12 +142,18 @@ class Trainer:
             images = batch["image"].to(self.device)
             targets = batch["heatmaps"].to(self.device)
 
-            preds = self.model(images)
-            loss = self.criterion(preds, targets)
+            with torch.autocast(
+                device_type=self.device.type,
+                dtype=self._amp_dtype,
+                enabled=self._amp_dtype is not None,
+            ):
+                preds = self.model(images)
+                loss = self.criterion(preds, targets)
 
             self.optimizer.zero_grad()
-            loss.backward()
-            self.optimizer.step()
+            self.scaler.scale(loss).backward()
+            self.scaler.step(self.optimizer)
+            self.scaler.update()
 
             total_loss += loss.item() * images.size(0)
 
@@ -153,8 +168,13 @@ class Trainer:
             images = batch["image"].to(self.device)
             targets = batch["heatmaps"].to(self.device)
 
-            preds = self.model(images)
-            loss = self.criterion(preds, targets)
+            with torch.autocast(
+                device_type=self.device.type,
+                dtype=self._amp_dtype,
+                enabled=self._amp_dtype is not None,
+            ):
+                preds = self.model(images)
+                loss = self.criterion(preds, targets)
             total_loss += loss.item() * images.size(0)
 
         return total_loss / len(loader.dataset)  # type: ignore[arg-type]
