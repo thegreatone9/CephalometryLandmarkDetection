@@ -19,8 +19,8 @@ The Aariz dataset structure:
 
 Ground truth = mean of averaged Junior and averaged Senior landmark positions.
 
-The dataset provides 29 landmarks per image.  We select 6 key skeletal
-landmarks for our pipeline.
+The dataset provides 29 landmarks per image.  We select 25 clinically
+essential landmarks covering Steiner, Downs, Ricketts, and Wits analyses.
 """
 
 from __future__ import annotations
@@ -77,8 +77,37 @@ ALL_LANDMARK_SYMBOLS: list[str] = [
 ]
 
 # The landmarks we use for heatmap regression, by their Aariz symbol.
-# Using all 29 Aariz landmarks for comprehensive benchmark evaluation.
-SELECTED_SYMBOLS: list[str] = list(ALL_LANDMARK_SYMBOLS)
+# 25 clinically essential landmarks covering Steiner, Downs, Ricketts,
+# and Wits analyses plus soft tissue profile.
+# Excluded: R (no standard analysis), UPM/LPM (premolar cusps — research only),
+#           N` (soft tissue nasion — redundant with bony Nasion).
+SELECTED_SYMBOLS: list[str] = [
+    "A",     # A-point
+    "ANS",   # Anterior Nasal Spine
+    "B",     # B-point
+    "Me",    # Menton
+    "N",     # Nasion
+    "Or",    # Orbitale
+    "Pog",   # Pogonion
+    "PNS",   # Posterior Nasal Spine
+    "Pn",    # Pronasale
+    "S",     # Sella
+    "Ar",    # Articulare
+    "Co",    # Condylion
+    "Gn",    # Gnathion
+    "Go",    # Gonion
+    "Po",    # Porion
+    "LIT",   # Lower Incisor Tip
+    "LMT",   # Lower Molar Cusp Tip
+    "UIA",   # Upper Incisor Apex
+    "UIT",   # Upper Incisor Tip
+    "UMT",   # Upper Molar Cusp Tip
+    "LIA",   # Lower Incisor Apex
+    "Li",    # Labrale inferius
+    "Ls",    # Labrale superius
+    "Pog`",  # Soft Tissue Pogonion
+    "Sn",    # Subnasale
+]
 
 SELECTED_DISPLAY_NAMES: list[str] = [
     "A-point (A)",
@@ -90,24 +119,20 @@ SELECTED_DISPLAY_NAMES: list[str] = [
     "Pogonion (Pog)",
     "Posterior Nasal Spine (PNS)",
     "Pronasale (Pn)",
-    "Ramus (R)",
     "Sella (S)",
     "Articulare (Ar)",
     "Condylion (Co)",
     "Gnathion (Gn)",
     "Gonion (Go)",
     "Porion (Po)",
-    "Lower 2nd PM Cusp (LPM)",
     "Lower Incisor Tip (LIT)",
     "Lower Molar Cusp (LMT)",
-    "Upper 2nd PM Cusp (UPM)",
     "Upper Incisor Apex (UIA)",
     "Upper Incisor Tip (UIT)",
     "Upper Molar Cusp (UMT)",
     "Lower Incisor Apex (LIA)",
     "Labrale Inferius (Li)",
     "Labrale Superius (Ls)",
-    "Soft Tissue Nasion (N`)",
     "Soft Tissue Pogonion (Pog`)",
     "Subnasale (Sn)",
 ]
@@ -120,13 +145,13 @@ NUM_LANDMARKS: int = len(SELECTED_SYMBOLS)
 SIGMA_MAP: dict[str, float] = {
     # Skeletal — clear bony edges, well-separated
     "A": 5.0, "ANS": 5.0, "B": 5.0, "Me": 5.0, "N": 5.0, "Or": 5.0,
-    "Pog": 5.0, "PNS": 5.0, "R": 5.0, "S": 5.0, "Ar": 5.0, "Co": 5.0,
+    "Pog": 5.0, "PNS": 5.0, "S": 5.0, "Ar": 5.0, "Co": 5.0,
     "Gn": 5.0, "Go": 5.0, "Po": 5.0,
     # Dental — tightly clustered, need narrow Gaussians
-    "LPM": 3.0, "LIT": 3.0, "LMT": 3.0, "UPM": 3.0,
+    "LIT": 3.0, "LMT": 3.0,
     "UIA": 3.0, "UIT": 3.0, "UMT": 3.0, "LIA": 3.0,
     # Soft tissue — fuzzy boundaries, higher annotation uncertainty
-    "Pn": 7.0, "Sn": 7.0, "Ls": 7.0, "Li": 7.0, "N`": 7.0, "Pog`": 7.0,
+    "Pn": 7.0, "Sn": 7.0, "Ls": 7.0, "Li": 7.0, "Pog`": 7.0,
 }
 
 
