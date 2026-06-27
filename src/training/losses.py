@@ -125,4 +125,19 @@ class AdaptiveWingLoss(nn.Module):
         weight_map = weight_map + w_foreground * (target > 0).float()
 
         loss = awl * weight_map
+
+        # ----------------------------------------------------------
+        # Online Hard Landmark Mining (OHLM)
+        # Channels with higher loss get amplified gradients so the
+        # model cannot coast on easy landmarks.
+        # ----------------------------------------------------------
+        # Per-channel mean loss: (B, C)
+        per_channel = loss.mean(dim=(2, 3))
+        # Normalised weights: channels with above-avg loss get weight > 1
+        channel_weights = per_channel / (per_channel.mean(dim=1, keepdim=True) + 1e-8)
+        channel_weights = channel_weights.clamp(min=0.5, max=3.0)
+        # Reshape for broadcasting: (B, C, 1, 1)
+        channel_weights = channel_weights.detach().unsqueeze(-1).unsqueeze(-1)
+        loss = loss * channel_weights
+
         return loss.mean()
