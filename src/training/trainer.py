@@ -93,12 +93,13 @@ class Trainer:
         self.device = device or get_device()
 
         # Mixed-precision setup
+        # Enabled on CUDA (with GradScaler protection) but NOT on MPS
+        # because AWL's pow/log operations can lose precision in FP16
+        # and MPS doesn't support GradScaler to prevent gradient underflow.
         self._amp_dtype: torch.dtype | None = None
         if self.device.type == "cuda":
             self._amp_dtype = torch.float16
-        elif self.device.type == "mps":
-            self._amp_dtype = torch.float16
-        self.scaler = torch.amp.GradScaler(enabled=self._amp_dtype is not None and self.device.type == "cuda")
+        self.scaler = torch.amp.GradScaler(enabled=self._amp_dtype is not None)
 
         # Model
         self.model = create_model(
