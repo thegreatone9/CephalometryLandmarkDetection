@@ -140,19 +140,10 @@ SELECTED_DISPLAY_NAMES: list[str] = [
 NUM_LANDMARKS: int = len(SELECTED_SYMBOLS)
 
 # Per-landmark sigma values for heatmap generation.
-# Dental landmarks get tighter Gaussians (less overlap in dense region),
-# soft tissue gets wider Gaussians (higher annotation uncertainty).
-SIGMA_MAP: dict[str, float] = {
-    # Skeletal — clear bony edges, well-separated
-    "A": 5.0, "ANS": 5.0, "B": 5.0, "Me": 5.0, "N": 5.0, "Or": 5.0,
-    "Pog": 5.0, "PNS": 5.0, "S": 5.0, "Ar": 5.0, "Co": 5.0,
-    "Gn": 5.0, "Go": 5.0, "Po": 5.0,
-    # Dental — tightly clustered, need narrow Gaussians
-    "LIT": 3.0, "LMT": 3.0,
-    "UIA": 3.0, "UIT": 3.0, "UMT": 3.0, "LIA": 3.0,
-    # Soft tissue — fuzzy boundaries, higher annotation uncertainty
-    "Pn": 7.0, "Sn": 7.0, "Ls": 7.0, "Li": 7.0, "Pog`": 7.0,
-}
+# Using uniform σ=5 for all landmarks.  Adaptive sigma (σ=3 dental,
+# σ=7 soft tissue) was tested but caused dental landmark collapse
+# when combined with spatial augmentations.
+SIGMA_MAP: dict[str, float] = {sym: 5.0 for sym in SELECTED_SYMBOLS}
 
 
 # ---------------------------------------------------------------------------

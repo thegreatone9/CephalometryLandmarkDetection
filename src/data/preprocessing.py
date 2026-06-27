@@ -51,7 +51,7 @@ def get_train_transforms(image_size: int = 512) -> Compose:
                 border_mode=0,
                 p=0.5,
             ),
-            A.ElasticTransform(alpha=30, sigma=5, p=0.2),
+            A.ElasticTransform(alpha=15, sigma=5, p=0.2),
             A.RandomBrightnessContrast(
                 brightness_limit=0.15,
                 contrast_limit=0.15,
