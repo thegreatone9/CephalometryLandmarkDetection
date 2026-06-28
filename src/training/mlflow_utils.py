@@ -73,6 +73,60 @@ def log_epoch_metrics(
     )
 
 
+def log_epoch_extended(
+    epoch: int,
+    best_val_loss: float,
+    learning_rate: float,
+    epoch_time_seconds: float,
+) -> None:
+    """Log extended per-epoch tracking metrics.
+
+    Parameters
+    ----------
+    epoch : int
+        Current epoch number (1-indexed).
+    best_val_loss : float
+        Best validation loss seen so far (monotonically decreasing).
+    learning_rate : float
+        Current learning rate from the scheduler.
+    epoch_time_seconds : float
+        Wall-clock time for this epoch in seconds.
+    """
+    mlflow.log_metrics(
+        {
+            "best_val_loss": best_val_loss,
+            "learning_rate": learning_rate,
+            "epoch_time_seconds": epoch_time_seconds,
+        },
+        step=epoch,
+    )
+
+
+def log_per_channel_val_loss(
+    epoch: int,
+    channel_losses: dict[str, float],
+) -> None:
+    """Log per-landmark-channel validation loss.
+
+    This enables tracking which landmark channels are learning vs
+    collapsing during training — critical for diagnosing the
+    "attention budget" problem where some channels get starved.
+
+    Parameters
+    ----------
+    epoch : int
+        Current epoch number (1-indexed).
+    channel_losses : dict[str, float]
+        Per-channel mean loss, keyed by landmark symbol.
+    """
+    import re
+    metrics = {}
+    for name, val in channel_losses.items():
+        safe_name = re.sub(r"[^a-zA-Z0-9_\-.\s:/]", "", name).strip().replace(" ", "_")
+        metrics[f"val_loss_ch_{safe_name}"] = val
+    mlflow.log_metrics(metrics, step=epoch)
+
+
 def log_evaluation_metrics(
     mre_per_landmark: dict[str, float],
     mre_overall: float,

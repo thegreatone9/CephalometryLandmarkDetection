@@ -247,7 +247,15 @@ def main(argv: list[str] | None = None) -> None:
     # ------------------------------------------------------------------
     print("\n[3/4] Training …")
     run_name = f"{args.encoder}-ep{args.epochs}-bs{args.batch_size}-img{args.img_size}"
-    with mlflow.start_run(run_name=run_name, tags={"encoder": args.encoder}):
+
+    # Build hardware tags for MLflow run tracking
+    run_tags = {"encoder": args.encoder, "device_type": str(device)}
+    if device.type == "cuda":
+        run_tags["gpu_name"] = torch.cuda.get_device_name(0)
+    elif device.type == "mps":
+        run_tags["gpu_name"] = "Apple Silicon (MPS)"
+
+    with mlflow.start_run(run_name=run_name, tags=run_tags):
         log_hyperparams(hyperparams)
 
         trainer = Trainer(
@@ -260,6 +268,7 @@ def main(argv: list[str] | None = None) -> None:
             epochs=args.epochs,
             checkpoint_dir=args.checkpoint_dir,
             device=device,
+            landmark_symbols=list(SELECTED_SYMBOLS),
         )
 
         best_ckpt = trainer.fit(
