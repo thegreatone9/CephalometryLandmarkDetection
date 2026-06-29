@@ -10,7 +10,8 @@ set -e
 
 WORKERS=4
 STAGE2_ONLY=""
-STAGE1_CKPT_DIR="checkpoints/resnet34-ep400-bs12-img512"
+# Use a distinct directory name for the 29-landmark two-stage pipeline
+STAGE1_CKPT_DIR="checkpoints/stage1-resnet34-ep400-bs12-img512-29L"
 STAGE1_CKPT="${STAGE1_CKPT_DIR}/best_model.pth"
 
 # Parse args
@@ -37,9 +38,16 @@ if [ -n "$STAGE2_ONLY" ]; then
 fi
 
 echo "============================================"
-echo "  Two-Stage Pipeline"
+echo "  Two-Stage Pipeline (29 landmarks)"
 echo "  Workers: $WORKERS"
 echo "============================================"
+
+# Check dependencies
+python -c "import mlflow" 2>/dev/null || {
+    echo ""
+    echo "Installing mlflow..."
+    pip install mlflow
+}
 
 # ------------------------------------------------------------------
 # STAGE 1
@@ -59,7 +67,8 @@ else
         --epochs 400 \
         --batch-size 12 \
         --img-size 512 \
-        --num-workers "$WORKERS"
+        --num-workers "$WORKERS" \
+        --checkpoint-dir "$STAGE1_CKPT_DIR"
 
     if [ ! -f "$STAGE1_CKPT" ]; then
         echo "ERROR: Stage 1 checkpoint not found at $STAGE1_CKPT"
