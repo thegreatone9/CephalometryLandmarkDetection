@@ -138,8 +138,11 @@ def main(argv: list[str] | None = None) -> None:
         in_channels=1,
         num_classes=NUM_LANDMARKS,
     )
-    state_dict = torch.load(args.stage1_checkpoint, map_location="cpu")
-    stage1_model.load_state_dict(state_dict)
+    checkpoint = torch.load(args.stage1_checkpoint, map_location="cpu")
+    if isinstance(checkpoint, dict) and "model_state_dict" in checkpoint:
+        stage1_model.load_state_dict(checkpoint["model_state_dict"])
+    else:
+        stage1_model.load_state_dict(checkpoint)
     stage1_model.to(device)
     stage1_model.eval()
 

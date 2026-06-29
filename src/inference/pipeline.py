@@ -125,8 +125,11 @@ class TwoStagePipeline:
             in_channels=1,
             num_classes=num_landmarks,
         )
-        s1_state = torch.load(stage1_checkpoint, map_location="cpu")
-        self.stage1.load_state_dict(s1_state)
+        s1_checkpoint = torch.load(stage1_checkpoint, map_location="cpu")
+        if isinstance(s1_checkpoint, dict) and "model_state_dict" in s1_checkpoint:
+            self.stage1.load_state_dict(s1_checkpoint["model_state_dict"])
+        else:
+            self.stage1.load_state_dict(s1_checkpoint)
         self.stage1.to(device)
         self.stage1.eval()
 
