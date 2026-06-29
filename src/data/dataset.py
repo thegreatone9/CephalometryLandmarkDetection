@@ -77,37 +77,9 @@ ALL_LANDMARK_SYMBOLS: list[str] = [
 ]
 
 # The landmarks we use for heatmap regression, by their Aariz symbol.
-# 25 clinically essential landmarks covering Steiner, Downs, Ricketts,
-# and Wits analyses plus soft tissue profile.
-# Excluded: R (no standard analysis), UPM/LPM (premolar cusps — research only),
-#           N` (soft tissue nasion — redundant with bony Nasion).
-SELECTED_SYMBOLS: list[str] = [
-    "A",     # A-point
-    "ANS",   # Anterior Nasal Spine
-    "B",     # B-point
-    "Me",    # Menton
-    "N",     # Nasion
-    "Or",    # Orbitale
-    "Pog",   # Pogonion
-    "PNS",   # Posterior Nasal Spine
-    "Pn",    # Pronasale
-    "S",     # Sella
-    "Ar",    # Articulare
-    "Co",    # Condylion
-    "Gn",    # Gnathion
-    "Go",    # Gonion
-    "Po",    # Porion
-    "LIT",   # Lower Incisor Tip
-    "LMT",   # Lower Molar Cusp Tip
-    "UIA",   # Upper Incisor Apex
-    "UIT",   # Upper Incisor Tip
-    "UMT",   # Upper Molar Cusp Tip
-    "LIA",   # Lower Incisor Apex
-    "Li",    # Labrale inferius
-    "Ls",    # Labrale superius
-    "Pog`",  # Soft Tissue Pogonion
-    "Sn",    # Subnasale
-]
+# All 29 Aariz landmarks — the two-stage pipeline handles each landmark
+# individually in Stage 2, so there is no reason to exclude any.
+SELECTED_SYMBOLS: list[str] = list(ALL_LANDMARK_SYMBOLS)
 
 SELECTED_DISPLAY_NAMES: list[str] = [
     "A-point (A)",
@@ -119,20 +91,24 @@ SELECTED_DISPLAY_NAMES: list[str] = [
     "Pogonion (Pog)",
     "Posterior Nasal Spine (PNS)",
     "Pronasale (Pn)",
+    "Ramus (R)",
     "Sella (S)",
     "Articulare (Ar)",
     "Condylion (Co)",
     "Gnathion (Gn)",
     "Gonion (Go)",
     "Porion (Po)",
+    "Lower 2nd PM Cusp (LPM)",
     "Lower Incisor Tip (LIT)",
     "Lower Molar Cusp (LMT)",
+    "Upper 2nd PM Cusp (UPM)",
     "Upper Incisor Apex (UIA)",
     "Upper Incisor Tip (UIT)",
     "Upper Molar Cusp (UMT)",
     "Lower Incisor Apex (LIA)",
     "Labrale Inferius (Li)",
     "Labrale Superius (Ls)",
+    "Soft Tissue Nasion (N`)",
     "Soft Tissue Pogonion (Pog`)",
     "Subnasale (Sn)",
 ]
@@ -143,7 +119,7 @@ NUM_LANDMARKS: int = len(SELECTED_SYMBOLS)
 # Using uniform σ=5 for all landmarks.  Adaptive sigma (σ=3 dental,
 # σ=7 soft tissue) was tested but caused dental landmark collapse
 # when combined with spatial augmentations.
-SIGMA_MAP: dict[str, float] = {sym: 5.0 for sym in SELECTED_SYMBOLS}
+SIGMA_MAP: dict[str, float] = {sym: 5.0 for sym in ALL_LANDMARK_SYMBOLS}
 
 
 # ---------------------------------------------------------------------------

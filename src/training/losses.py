@@ -126,4 +126,4 @@ class AdaptiveWingLoss(nn.Module):
 
         loss = awl * weight_map
 
-        return loss.mean()
+        return loss.mean(dim=(0, 2, 3)).mean()
