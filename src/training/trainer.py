@@ -4,7 +4,7 @@ Training loop for cephalometric landmark heatmap regression.
 Handles:
 - AdaptiveWingLoss between predicted and ground-truth heatmaps
 - Adam optimiser with differential LR (encoder / decoder)
-- CosineAnnealingWarmRestarts scheduler
+- CosineAnnealingLR scheduler (smooth decay, no restarts)
 - Best-model checkpointing
 - Device auto-detection: MPS → CUDA → CPU
 - Mixed-precision training (AMP)
@@ -20,7 +20,7 @@ from typing import Optional
 import torch
 import torch.nn as nn
 from torch.optim import Adam
-from torch.optim.lr_scheduler import CosineAnnealingWarmRestarts
+from torch.optim.lr_scheduler import CosineAnnealingLR
 from torch.utils.data import DataLoader
 
 from src.models.unet import create_model, get_parameter_groups
@@ -124,11 +124,12 @@ class Trainer:
         )
         self.optimizer = Adam(param_groups)
 
-        # Scheduler
-        self.scheduler = CosineAnnealingWarmRestarts(
+        # Scheduler — smooth cosine decay over all epochs.
+        # CosineAnnealingWarmRestarts was removed because the LR
+        # restart at epoch 140 caused NaN with channel-balanced loss.
+        self.scheduler = CosineAnnealingLR(
             self.optimizer,
-            T_0=20,
-            T_mult=2,
+            T_max=epochs,
             eta_min=1e-6,
         )
 
@@ -160,6 +161,8 @@ class Trainer:
 
             self.optimizer.zero_grad()
             self.scaler.scale(loss).backward()
+            self.scaler.unscale_(self.optimizer)
+            torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=1.0)
             self.scaler.step(self.optimizer)
             self.scaler.update()
 
